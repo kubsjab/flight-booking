@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.simulation
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 
-object BasicSimulationGuardian extends Simulation {
+object StandardSimulationGuardian extends Simulation {
 
   override val name: String = "basic"
 
