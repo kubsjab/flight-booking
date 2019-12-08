@@ -6,7 +6,7 @@ import pl.edu.pw.ii.sag.flightbooking.simulation.generation.{AirlineGenerator, B
 
 object StandardSimulationGuardian extends Simulation {
 
-  override val name: String = "basic"
+  override val name: String = "standard"
 
   def apply(): Behavior[Simulation.Start] = {
     Behaviors.setup[Simulation.Start] { context =>

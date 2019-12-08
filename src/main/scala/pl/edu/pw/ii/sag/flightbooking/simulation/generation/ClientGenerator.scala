@@ -22,6 +22,5 @@ object ClientGenerator {
     Behaviors.same
   }
 
-
 }
 

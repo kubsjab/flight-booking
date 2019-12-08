@@ -22,6 +22,5 @@ object BrokerGenerator {
     Behaviors.same
   }
 
-
 }
 

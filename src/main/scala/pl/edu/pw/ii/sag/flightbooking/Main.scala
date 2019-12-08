@@ -14,7 +14,6 @@ object Main {
     }
     val system: ActorSystem[Simulation.Start] = ActorSystem(simulationGuardian, "flight-booking")
     system ! Simulation.Start()
-
   }
 
 }
