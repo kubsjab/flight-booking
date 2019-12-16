@@ -37,5 +37,5 @@ Add additional notes about how to deploy this on a live system
 ## Authors
 
 * **Jakub Jabloński** - [kubsjab](https://github.com/kubsjab)
-* **Przemysław Wilńczyński** - [pwilcz](https://github.com/pwilcz)
+* **Przemysław Wilczyński** - [pwilcz](https://github.com/pwilcz)
 * **Michał Grzeszczyk** - [MiHu773](https://github.com/MiHu773)
