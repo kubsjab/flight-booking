@@ -7,6 +7,11 @@ import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.BookingRequest
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.FlightData
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
+object FlightBookingStrategy extends Enumeration {
+    type FlightBookingStrategy = Value
+    val STANDARD, OVERBOOKING = Value
+}
+
 object Flight {
 
   // command
