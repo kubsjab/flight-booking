@@ -1,7 +1,7 @@
 package pl.edu.pw.ii.sag.flightbooking.simulation
 
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.{AirlineGenerator, BrokerGenerator, ClientGenerator}
 
 object StandardSimulationGuardian extends Simulation {
@@ -12,8 +12,7 @@ object StandardSimulationGuardian extends Simulation {
     Behaviors.setup[Simulation.Start] { context =>
       context.log.info("Starting standard simulation")
 
-      val airlineGenerator = context.spawn(AirlineGenerator(), "airline-generator")
-      airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(3)
+      generateAirlines(context)
 
       val brokerGenerator = context.spawn(BrokerGenerator(), "broker-generator")
       brokerGenerator ! BrokerGenerator.GenerateStandardBrokers(10)
@@ -23,6 +22,11 @@ object StandardSimulationGuardian extends Simulation {
 
       Behaviors.empty
     }
+  }
+
+  private def generateAirlines(context: ActorContext[Simulation.Start]): Unit ={
+    val airlineGenerator = context.spawn(AirlineGenerator(), "airline-generator")
+    airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(3)
   }
 
 }
