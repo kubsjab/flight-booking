@@ -10,8 +10,10 @@
     <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1024</queueSize>
         <neverBlock>true</neverBlock>
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="STDOUT"/>
     </appender>
+
+    <logger name="pl.edu.pw.ii.sag.flightbooking" level="DEBUG"/>
 
     <root level="INFO">
         <appender-ref ref="ASYNC"/>
