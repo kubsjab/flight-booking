@@ -23,8 +23,7 @@ object AirlineManager {
   // reply
   sealed trait CommandReply extends CborSerializable
   sealed trait OperationResult extends CommandReply
-  case class Confirmed() extends OperationResult
-  final case class AirlineCreationConfirmed(airlineId: String) extends OperationResult
+  final case class AirlineCreationConfirmed(airlineId: String, airline: ActorRef[Airline.Command]) extends OperationResult
   final case class Rejected(reason: String) extends OperationResult
   final case class AirlineCollection(airlines: Map[String, ActorRef[Airline.Command]]) extends CommandReply
 
