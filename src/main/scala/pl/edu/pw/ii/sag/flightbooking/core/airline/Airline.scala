@@ -4,8 +4,8 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
-import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightData}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightData}
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 case class AirlineData(airlineId: String, name: String)
