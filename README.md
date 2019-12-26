@@ -1,4 +1,6 @@
-# Flight booking simulation
+# Flight booking simulation 
+
+[![Build Status](https://travis-ci.com/kubsjab/flight-booking.svg?token=7PK2EnfnQpj8Vgaz7vsF&branch=master)](https://travis-ci.com/kubsjab/flight-booking)
 
 Flight booking simulation implemented using Actor programming model.
 
