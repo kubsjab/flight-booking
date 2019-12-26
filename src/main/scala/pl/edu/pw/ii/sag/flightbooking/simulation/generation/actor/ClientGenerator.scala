@@ -1,4 +1,4 @@
-package pl.edu.pw.ii.sag.flightbooking.simulation.generation
+package pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -23,4 +23,3 @@ object ClientGenerator {
   }
 
 }
-

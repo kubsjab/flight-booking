@@ -12,6 +12,7 @@ object AirlineManager {
   // command
   sealed trait Command extends CborSerializable
   final case class CreateAirline(airlineData: AirlineData, replyTo: ActorRef[OperationResult]) extends Command
+  final case class GetAirline(airlineId: String, replyTo: ActorRef[AirlineCollection]) extends Command
   final case class GetAirlines(replyTo: ActorRef[AirlineCollection]) extends Command
   private final case class TerminateAirline(airlineId: String, airline: ActorRef[Airline.Command]) extends Command
 
@@ -44,6 +45,7 @@ object AirlineManager {
       cmd match {
         case c: CreateAirline => createAirline(context, state, c)
         case c: TerminateAirline => terminateAirline(context, state, c)
+        case c: GetAirline => getAirline(state, c)
         case c: GetAirlines => getAirlines(state, c)
       }
   }
@@ -74,6 +76,10 @@ object AirlineManager {
 
   private def terminateAirline(context: ActorContext[Command], state: State, cmd: TerminateAirline): Effect[Event, State] = {
     Effect.persist(AirlineTerminated(cmd.airlineId, cmd.airline))
+  }
+
+  private def getAirline(state: State, cmd: GetAirline): ReplyEffect[Event, State] = {
+    Effect.reply(cmd.replyTo)(AirlineCollection(state.airlineActors.view.filterKeys(_ == cmd.airlineId).toMap))
   }
 
   private def getAirlines(state: State, cmd: GetAirlines): ReplyEffect[Event, State] = {
