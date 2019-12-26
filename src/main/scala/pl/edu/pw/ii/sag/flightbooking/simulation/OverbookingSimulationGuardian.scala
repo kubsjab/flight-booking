@@ -8,8 +8,8 @@ object OverbookingSimulationGuardian extends Simulation {
 
   override val simulationType: SimulationType = SimulationType.OVERBOOKING
 
-  def apply(): Behavior[Simulation.Start] = {
-    Behaviors.setup[Simulation.Start] { context =>
+  def apply(): Behavior[Simulation.Message] = {
+    Behaviors.setup[Simulation.Message] { context =>
       context.log.info("Starting overbooking simulation")
       Behaviors.empty
     }

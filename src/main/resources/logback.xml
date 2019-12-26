@@ -13,7 +13,7 @@
         <appender-ref ref="STDOUT"/>
     </appender>
 
-    <logger name="pl.edu.pw.ii.sag.flightbooking" level="DEBUG"/>
+    <logger name="pl.edu.pw.ii.sag.flightbooking" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="ASYNC"/>

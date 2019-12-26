@@ -60,7 +60,7 @@ object Airline {
       case FlightCreated(flightData, flightBookingStrategy) =>
         val flight = context.spawn(Flight(flightData,flightBookingStrategy), flightData.flightId)
         context.watchWith(flight, TerminateFlight(flightData.flightId, flight))
-        context.log.debug(s"Flight: [${flightData.flightId}] has been created")
+        context.log.info(s"Flight: [${flightData.flightId}] has been created")
         State(state.flightActors.updated(flightData.flightId, flight))
       case FlightTerminated(flightId, flight) =>
         context.log.info(s"Flight: [${flightId}] has been terminated")

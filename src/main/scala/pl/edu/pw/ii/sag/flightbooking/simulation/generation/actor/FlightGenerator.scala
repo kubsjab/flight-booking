@@ -16,8 +16,8 @@ import scala.util.{Failure, Random, Success}
 object FlightGenerator {
 
   sealed trait Command extends CborSerializable
-  final case class GenerateStandardFlights(airlineIds: Seq[String], minCount: Int, maxCount: Int) extends Command
-  final case class GenerateOverbookingFlights(airlineIds: Seq[String], minCount: Int, maxCount: Int) extends Command
+  final case class GenerateStandardFlights(airlineIds: Set[String], minCount: Int, maxCount: Int) extends Command
+  final case class GenerateOverbookingFlights(airlineIds: Set[String], minCount: Int, maxCount: Int) extends Command
   final case class GenerateFlights(simulationType: SimulationType, airline: ActorRef[Airline.Command], minCount: Int, maxCount: Int) extends Command
   private final case class WrappedAirlineResponse(response: Airline.OperationResult) extends Command
   private final case class AdaptedAirlineManagerFailure(msg: String) extends Command
@@ -36,7 +36,7 @@ object FlightGenerator {
   }
 
   private def standardFlightsGeneration(context: ActorContext[Command],
-                                airlineManager: ActorRef[AirlineManager.Command],
+                                        airlineManager: ActorRef[AirlineManager.Command],
                                         cmd: GenerateStandardFlights): Behavior[Command] = {
     context.log.info("Generating {}-{} standard flights for {} airlines", cmd.minCount, cmd.maxCount, cmd.airlineIds.size)
     val simulationType: SimulationType = SimulationType.STANDARD
@@ -44,8 +44,8 @@ object FlightGenerator {
   }
 
   private def overbookingFlightsGeneration(context: ActorContext[Command],
-                                        airlineManager: ActorRef[AirlineManager.Command],
-                                        cmd: GenerateOverbookingFlights): Behavior[Command] = {
+                                           airlineManager: ActorRef[AirlineManager.Command],
+                                           cmd: GenerateOverbookingFlights): Behavior[Command] = {
     context.log.info("Generating {}-{} overbooking flights for {} airlines", cmd.minCount, cmd.maxCount, cmd.airlineIds.size)
     val simulationType: SimulationType = SimulationType.OVERBOOKING
     flightsGeneration(context, simulationType, airlineManager, cmd.airlineIds, cmd.minCount, cmd.maxCount)
@@ -54,7 +54,7 @@ object FlightGenerator {
   private def flightsGeneration(context: ActorContext[Command],
                                 simulationType: SimulationType,
                                 airlineManager: ActorRef[AirlineManager.Command],
-                                airlineIds: Seq[String],
+                                airlineIds: Set[String],
                                 minCount: Int,
                                 maxCount: Int): Behavior[Command] = {
     implicit val timeout: Timeout = 5.seconds
