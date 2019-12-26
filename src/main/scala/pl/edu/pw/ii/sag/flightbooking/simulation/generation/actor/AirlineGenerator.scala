@@ -4,40 +4,60 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.{Airline, AirlineData, AirlineManager}
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
+import pl.edu.pw.ii.sag.flightbooking.util.Aggregator
+
+import scala.concurrent.duration._
+
 
 object AirlineGenerator {
 
+  // command
   sealed trait Command extends CborSerializable
-  final case class GenerateStandardAirlines(count: Int) extends Command
-  private final case class WrappedAirlineManagerResponse(response: AirlineManager.OperationResult) extends Command
+  final case class GenerateStandardAirlines(count: Int, replyTo: ActorRef[OperationResult]) extends Command
+  final case class AggregatedAirlines(airlineIds: Set[String], replyTo: ActorRef[OperationResult]) extends Command
+
+  // reply
+  sealed trait CommandReply extends CborSerializable
+  sealed trait OperationResult extends CommandReply
+  final case class AirlineGenerationCompleted(airlineIds: Set[String]) extends OperationResult
+  final case class Rejected(reason: String) extends OperationResult
+
 
   def apply(airlineManager: ActorRef[AirlineManager.Command]): Behavior[Command] = Behaviors.receive { (context, message: Command) =>
-    val airlineManagerResponseWrapper: ActorRef[AirlineManager.OperationResult] = context.messageAdapter(rsp => WrappedAirlineManagerResponse(rsp))
     message match {
-      case GenerateStandardAirlines(count) => airlineGeneration(context, airlineManager, airlineManagerResponseWrapper, count)
-      case WrappedAirlineManagerResponse(response) => airlineManagerResponseMapper(context, response)
+      case GenerateStandardAirlines(count, replyTo) => generateAirlines(context, airlineManager, count, replyTo)
+      case AggregatedAirlines(airlineIds, replyTo) => confirmAirlineGenerationCompletion(airlineIds, replyTo)
       case _ => Behaviors.same
     }
   }
 
-  private def airlineGeneration(context: ActorContext[Command],
+  private def generateAirlines(context: ActorContext[Command],
                                 airlineManager: ActorRef[AirlineManager.Command],
-                                airlineManagerResponseWrapper: ActorRef[AirlineManager.OperationResult],
-                                count: Int): Behavior[Command] = {
+                                count: Int,
+                               replyToWhenCompleted: ActorRef[OperationResult]): Behavior[Command] = {
     context.log.info("Generating {} airlines", count)
-    (0 to count).foreach(i => {
-      airlineManager ! AirlineManager.CreateAirline(AirlineData(Airline.buildId(i.toString), s"Airline-$i"), airlineManagerResponseWrapper)
-    })
+    context.spawnAnonymous(
+      Aggregator[AirlineManager.OperationResult, AggregatedAirlines](
+        sendRequests = { replyTo =>
+          (1 to count).foreach(i => {
+            airlineManager ! AirlineManager.CreateAirline(AirlineData(Airline.buildId(i.toString), s"Airline-$i"), replyTo)
+          })
+        },
+        expectedReplies = count,
+        context.self,
+        aggregateReplies = replies =>
+          AggregatedAirlines(
+            replies
+              .filter(_.isInstanceOf[AirlineManager.AirlineCreationConfirmed])
+              .map(x => x.asInstanceOf[AirlineManager.AirlineCreationConfirmed].airlineId)
+              .toSet,
+            replyToWhenCompleted),
+        timeout = 5.seconds))
     Behaviors.same
   }
 
-  private def airlineManagerResponseMapper(context: ActorContext[Command],
-                                           response: AirlineManager.OperationResult): Behavior[Command] = {
-    response match {
-      case AirlineManager.AirlineCreationConfirmed(airlineId) => context.log.debug(s"Airline - [${airlineId}] creation has been confirmed")
-      case AirlineManager.Rejected(reason) => context.log.warn(s"Airline creation has been rejected. Reason: $reason")
-      case _ => throw new IllegalStateException(s"Unexpected response [$response] from AirlineManager")
-    }
+  private def confirmAirlineGenerationCompletion(airlineIds: Set[String], replyTo: ActorRef[OperationResult]): Behavior[Command] ={
+    replyTo ! AirlineGenerator.AirlineGenerationCompleted(airlineIds)
     Behaviors.same
   }
 

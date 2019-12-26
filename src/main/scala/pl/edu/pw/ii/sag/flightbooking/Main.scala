@@ -6,7 +6,7 @@ import pl.edu.pw.ii.sag.flightbooking.simulation.{OverbookingSimulationGuardian,
 object Main {
 
   def main(args: Array[String]): Unit = {
-    val simulationGuardian: Behavior[Simulation.Start] = args.headOption.flatMap(augmentString => SimulationType.of(augmentString)) match {
+    val simulationGuardian: Behavior[Simulation.Message] = args.headOption.flatMap(augmentString => SimulationType.of(augmentString)) match {
       case Some(StandardSimulationGuardian.simulationType) => StandardSimulationGuardian()
       case Some(OverbookingSimulationGuardian.simulationType) => OverbookingSimulationGuardian()
       case None =>

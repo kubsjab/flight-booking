@@ -1,5 +1,6 @@
 package pl.edu.pw.ii.sag.flightbooking.simulation
 
+import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 
 object SimulationType extends Enumeration {
@@ -11,7 +12,8 @@ object SimulationType extends Enumeration {
 
 object Simulation {
 
-  final case class Start()
+  trait Message extends CborSerializable
+  final case class Start() extends Message
 
 }
 
