@@ -10,6 +10,7 @@ abstract class FlightBookingStrategy {
       state match {
         case openState@OpenedFlight(_, _) =>
           cmd match {
+            case c: GetFlightDetails => getFlightDetails(state, c)
             case c: Book => bookFlight(openState, c)
             case c: CancelBooking => cancelBooking(openState, c)
             case c: CloseFlight => closeFlight(openState, c)
@@ -18,6 +19,7 @@ abstract class FlightBookingStrategy {
 
         case ClosedFlight(_, _) =>
           cmd match {
+            case c: GetFlightDetails => getFlightDetails(state, c)
             case c: Book => Effect.reply(c.replyTo)(Rejected("Can't book a seat to an already closed flight"))
             case c: CancelBooking => Effect.reply(c.replyTo)(Rejected("Can't cancel booking of a seat from an already closed flight"))
             case _: CloseFlight => Effect.unhandled.thenNoReply()
@@ -30,5 +32,17 @@ abstract class FlightBookingStrategy {
   protected def cancelBooking(flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State]
 
   protected def closeFlight(flightState: OpenedFlight, cmd: CloseFlight): ReplyEffect[Event, State]
+
+  protected def getFlightDetails(flightState: State, cmd: GetFlightDetails): ReplyEffect[Event, State] = {
+    Effect.reply(cmd.replyTo)(
+      FlightDetailsMessage(
+        FlightDetails(
+          flightState.isInstanceOf[OpenedFlight],
+          flightState.flightInfo,
+          flightState.seatReservations.map { case (k, v) => (k, v.isDefined) }
+        )
+      )
+    )
+  }
 
 }

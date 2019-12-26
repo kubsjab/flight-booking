@@ -15,6 +15,10 @@ object FlightBookingStrategyType extends Enumeration {
     val STANDARD, OVERBOOKING = Value
 }
 
+case class FlightActorWrapper(flightData: FlightData, flightActor: ActorRef[Flight.Command])
+
+case class FlightDetails(open: Boolean, flightData: FlightData, seatReservations: Map[String, Boolean])
+
 case class FlightData(flightId: String,
                       plane: Plane,
                       startDatetime: ZonedDateTime,
@@ -26,9 +30,10 @@ object Flight {
 
   // command
   sealed trait Command extends CborSerializable
-  final case class Book(booking: BookingRequest, replyTo: ActorRef[Confirmation]) extends Command
-  final case class CancelBooking(flightId: String, seatId: String, replyTo: ActorRef[Confirmation]) extends Command
-  final case class CloseFlight(flightId: String, replyTo: ActorRef[Confirmation]) extends Command
+  final case class GetFlightDetails(replyTo: ActorRef[FlightDetailsMessage]) extends Command
+  final case class Book(booking: BookingRequest, replyTo: ActorRef[OperationResult]) extends Command
+  final case class CancelBooking(flightId: String, seatId: String, replyTo: ActorRef[OperationResult]) extends Command
+  final case class CloseFlight(flightId: String, replyTo: ActorRef[OperationResult]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
@@ -37,9 +42,11 @@ object Flight {
   final case class FlightClosed() extends Event
 
   // reply
-  sealed trait Confirmation extends CborSerializable
-  final case class Accepted() extends Confirmation
-  final case class Rejected(reason: String) extends Confirmation
+  sealed trait CommandReply extends CborSerializable
+  sealed trait OperationResult extends CommandReply
+  final case class Accepted() extends OperationResult
+  final case class Rejected(reason: String) extends OperationResult
+  final case class FlightDetailsMessage(flightDetails: FlightDetails) extends CommandReply
 
   //state
   sealed trait State extends CborSerializable {
