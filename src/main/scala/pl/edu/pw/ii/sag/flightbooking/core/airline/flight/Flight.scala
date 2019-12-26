@@ -2,9 +2,11 @@ package pl.edu.pw.ii.sag.flightbooking.core.airline.flight
 
 import java.time.ZonedDateTime
 
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.Flight.Command
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.BookingRequest
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
@@ -15,9 +17,11 @@ object FlightBookingStrategyType extends Enumeration {
     val STANDARD, OVERBOOKING = Value
 }
 
-case class FlightActorWrapper(flightData: FlightData, flightActor: ActorRef[Flight.Command])
+case class FlightDetailsWrapper(flight: ActorRef[Command], flightDetails: FlightDetailsData)
 
-case class FlightDetails(open: Boolean, flightData: FlightData, seatReservations: Map[String, Boolean])
+case class FlightDetailsData(open: Boolean, flightData: FlightData, seatReservations: Map[String, Boolean]){
+  def flightId: String = flightData.flightId
+}
 
 case class FlightData(flightId: String,
                       plane: Plane,
@@ -46,7 +50,7 @@ object Flight {
   sealed trait OperationResult extends CommandReply
   final case class Accepted() extends OperationResult
   final case class Rejected(reason: String) extends OperationResult
-  final case class FlightDetailsMessage(flightDetails: FlightDetails) extends CommandReply
+  final case class FlightDetailsMessage(flightDetailsWrapper: FlightDetailsWrapper) extends CommandReply
 
   //state
   sealed trait State extends CborSerializable {
@@ -80,19 +84,21 @@ object Flight {
   }
 
   def apply(flightData: FlightData, flightBookingStrategyType: FlightBookingStrategyType): Behavior[Command] =
-    EventSourcedBehavior[Command, Event, State](
-      persistenceId = PersistenceId.ofUniqueId(flightData.flightId),
-      emptyState = OpenedFlight(flightData, flightData.plane.seats.map(seat => seat.id -> None).toMap),
-      commandHandler = commandHandler(flightBookingStrategyType),
-      eventHandler = eventHandler)
+    Behaviors.setup { context =>
+      EventSourcedBehavior[Command, Event, State](
+        persistenceId = PersistenceId.ofUniqueId(flightData.flightId),
+        emptyState = OpenedFlight(flightData, flightData.plane.seats.map(seat => seat.id -> None).toMap),
+        commandHandler = commandHandler(context, flightBookingStrategyType),
+        eventHandler = eventHandler)
+    }
 
   private val eventHandler: (State, Event) => State = { (state, event) =>
     state.applyEvent(event)
   }
 
-  private def commandHandler(flightBookingStrategyType: FlightBookingStrategyType): (State, Command) => Effect[Event, State] = {
+  private def commandHandler(context: ActorContext[Command], flightBookingStrategyType: FlightBookingStrategyType): (State, Command) => Effect[Event, State] = {
     flightBookingStrategyType match {
-      case FlightBookingStrategyType.STANDARD => StandardFlightBookingStrategy().commandHandler()
+      case FlightBookingStrategyType.STANDARD => StandardFlightBookingStrategy().commandHandler(context)
       case FlightBookingStrategyType.OVERBOOKING => ???
     }
   }

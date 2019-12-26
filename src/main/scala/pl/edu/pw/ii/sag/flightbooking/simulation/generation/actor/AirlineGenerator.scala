@@ -32,8 +32,8 @@ object AirlineGenerator {
   }
 
   private def generateAirlines(context: ActorContext[Command],
-                                airlineManager: ActorRef[AirlineManager.Command],
-                                count: Int,
+                               airlineManager: ActorRef[AirlineManager.Command],
+                               count: Int,
                                replyToWhenCompleted: ActorRef[OperationResult]): Behavior[Command] = {
     context.log.info("Generating {} airlines", count)
     context.spawnAnonymous(
