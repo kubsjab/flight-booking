@@ -1,4 +1,4 @@
-package pl.edu.pw.ii.sag.flightbooking.simulation.generation
+package pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
@@ -11,24 +11,23 @@ object AirlineGenerator {
   final case class GenerateStandardAirlines(count: Int) extends Command
   private final case class WrappedAirlineManagerResponse(response: AirlineManager.OperationResult) extends Command
 
-  def apply(): Behavior[Command] = Behaviors.receive { (context, message: Command) =>
+  def apply(airlineManager: ActorRef[AirlineManager.Command]): Behavior[Command] = Behaviors.receive { (context, message: Command) =>
+    val airlineManagerResponseWrapper: ActorRef[AirlineManager.OperationResult] = context.messageAdapter(rsp => WrappedAirlineManagerResponse(rsp))
     message match {
-      case GenerateStandardAirlines(count) => airlineGeneration(context, count)
+      case GenerateStandardAirlines(count) => airlineGeneration(context, airlineManager, airlineManagerResponseWrapper, count)
       case WrappedAirlineManagerResponse(response) => airlineManagerResponseMapper(context, response)
       case _ => Behaviors.same
     }
   }
 
-  private def airlineGeneration(context: ActorContext[Command], count: Int): Behavior[Command] = {
+  private def airlineGeneration(context: ActorContext[Command],
+                                airlineManager: ActorRef[AirlineManager.Command],
+                                airlineManagerResponseWrapper: ActorRef[AirlineManager.OperationResult],
+                                count: Int): Behavior[Command] = {
     context.log.info("Generating {} airlines", count)
-    val airlineManagerResponseWrapper: ActorRef[AirlineManager.OperationResult] = context.messageAdapter(rsp => WrappedAirlineManagerResponse(rsp))
-
-    val airlineManager = context.spawn(AirlineManager(), "airline-generator")
-
-    for (i <- 0 to count) {
+    (0 to count).foreach(i => {
       airlineManager ! AirlineManager.CreateAirline(AirlineData(Airline.buildId(i.toString), s"Airline-$i"), airlineManagerResponseWrapper)
-    }
-
+    })
     Behaviors.same
   }
 
@@ -43,4 +42,3 @@ object AirlineGenerator {
   }
 
 }
-

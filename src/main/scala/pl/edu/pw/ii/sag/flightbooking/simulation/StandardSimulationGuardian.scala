@@ -1,9 +1,10 @@
 package pl.edu.pw.ii.sag.flightbooking.simulation
 
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import pl.edu.pw.ii.sag.flightbooking.core.airline.AirlineManager
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
-import pl.edu.pw.ii.sag.flightbooking.simulation.generation.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
+import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
 
 object StandardSimulationGuardian extends Simulation {
 
@@ -13,8 +14,7 @@ object StandardSimulationGuardian extends Simulation {
     Behaviors.setup[Simulation.Start] { context =>
       context.log.info("Starting standard simulation")
 
-      generateAirlines(context)
-      generateFlights(context)
+      generateAirlinesAndFlights(context)
       generateBrokers(context)
       generateClients(context)
 
@@ -22,14 +22,22 @@ object StandardSimulationGuardian extends Simulation {
     }
   }
 
-  private def generateAirlines(context: ActorContext[Simulation.Start]): Unit = {
-    val airlineGenerator = context.spawn(AirlineGenerator(), "airline-generator")
+  private def generateAirlinesAndFlights(context: ActorContext[Simulation.Start]): Unit = {
+    val airlineManager = context.spawn(AirlineManager(), "airline-manager")
+    generateAirlines(context, airlineManager)
+    generateFlights(context, airlineManager, Seq.empty)
+  }
+
+  private def generateAirlines(context: ActorContext[Simulation.Start], airlineManager: ActorRef[AirlineManager.Command]): Unit = {
+    val airlineGenerator = context.spawn(AirlineGenerator(airlineManager), "airline-generator")
     airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(3)
   }
 
-  private def generateFlights(context: ActorContext[Simulation.Start]): Unit = {
-    val flightGenerator = context.spawn(FlightGenerator(), "flight-generator")
-    flightGenerator ! FlightGenerator.GenerateStandardFlights(20, 30)
+  private def generateFlights(context: ActorContext[Simulation.Start],
+                              airlineManager: ActorRef[AirlineManager.Command],
+                              airlineIds: Seq[String]): Unit = {
+    val flightGenerator = context.spawn(FlightGenerator(airlineManager), "flight-generator")
+    flightGenerator ! FlightGenerator.GenerateStandardFlights(airlineIds, 20, 30)
   }
 
   private def generateBrokers(context: ActorContext[Simulation.Start]): Unit = {
