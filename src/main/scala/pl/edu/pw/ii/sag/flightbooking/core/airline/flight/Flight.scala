@@ -7,7 +7,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
-import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.BookingRequest
+import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.{BookingRequest, CancelBookingRequest}
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
@@ -32,8 +32,8 @@ object Flight {
   // command
   sealed trait Command extends CborSerializable
   final case class GetFlightDetails(replyTo: ActorRef[FlightDetailsMessage]) extends Command
-  final case class Book(booking: BookingRequest, replyTo: ActorRef[OperationResult]) extends Command
-  final case class CancelBooking(flightId: String, seatId: String, replyTo: ActorRef[OperationResult]) extends Command
+  final case class Book(booking: BookingRequest, replyTo: ActorRef[BookingOperationResult]) extends Command
+  final case class CancelBooking(cancelBookingRequest: CancelBookingRequest, replyTo: ActorRef[OperationResult]) extends Command
   final case class CloseFlight(flightId: String, replyTo: ActorRef[OperationResult]) extends Command
 
   // event
@@ -47,6 +47,11 @@ object Flight {
   sealed trait OperationResult extends CommandReply
   final case class Accepted() extends OperationResult
   final case class Rejected(reason: String) extends OperationResult
+
+  sealed trait BookingOperationResult extends CommandReply
+  final case class BookingAccepted(bookingId: String) extends BookingOperationResult
+  final case class BookingRejected(reason: String) extends BookingOperationResult
+
   final case class FlightDetailsMessage(flightDetails: FlightDetails) extends CommandReply
 
   //state
@@ -59,6 +64,12 @@ object Flight {
     def isBooked(seatId: String): Boolean = seatReservations.getOrElse(seatId, None).isDefined
 
     def isFlightIdValid(flightId: String): Boolean = flightInfo.flightId == flightId
+
+    def getSeatByBookingId(bookingId: String): Option[(String)] = {
+      seatReservations.view
+        .find((seatEntry: (String, Option[Booking])) => seatEntry._2.isDefined && seatEntry._2.get.bookingId == bookingId)
+        .map(_._1)
+    }
 
   }
 

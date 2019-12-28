@@ -21,7 +21,7 @@ abstract class FlightBookingStrategy {
         case ClosedFlight(_, _) =>
           cmd match {
             case c: GetFlightDetails => getFlightDetails(context, state, c)
-            case c: Book => Effect.reply(c.replyTo)(Rejected("Can't book a seat to an already closed flight"))
+            case c: Book => Effect.reply(c.replyTo)(BookingRejected("Can't book a seat to an already closed flight"))
             case c: CancelBooking => Effect.reply(c.replyTo)(Rejected("Can't cancel booking of a seat from an already closed flight"))
             case _: CloseFlight => Effect.unhandled.thenNoReply()
           }

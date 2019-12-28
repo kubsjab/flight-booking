@@ -13,28 +13,30 @@ class StandardFlightBookingStrategy extends FlightBookingStrategy {
 
   override protected def bookFlight(flightState: OpenedFlight, cmd: Book): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.booking.flightId)) {
-      return Effect.reply(cmd.replyTo)(Rejected("Invalid flightId"))
+      return Effect.reply(cmd.replyTo)(BookingRejected("Invalid flightId"))
     }
     if (flightState.isBooked(cmd.booking.seatId)) {
-      Effect.reply(cmd.replyTo)(Rejected(s"Seat with id ${cmd.booking.seatId} is already booked"))
+      Effect.reply(cmd.replyTo)(BookingRejected(s"Seat with id ${cmd.booking.seatId} is already booked"))
     }
     else {
+      val booking = Booking.createBooking(cmd.booking)
       Effect
-        .persist(Booked(cmd.booking.seatId, Booking(cmd.booking)))
-        .thenReply(cmd.replyTo)(_ => Accepted())
+        .persist(Booked(cmd.booking.seatId, booking))
+        .thenReply(cmd.replyTo)(_ => BookingAccepted(booking.bookingId))
     }
   }
 
   override protected def cancelBooking(flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State] = {
-    if (!flightState.isFlightIdValid(cmd.flightId)) {
+    if (!flightState.isFlightIdValid(cmd.cancelBookingRequest.flightId)) {
       return Effect.reply(cmd.replyTo)(Rejected("Invalid flightId"))
     }
-    if (!flightState.isBooked(cmd.seatId)) {
-      Effect.reply(cmd.replyTo)(Rejected(s"Seat with id ${cmd.seatId} is not booked"))
+    val bookedSeatId = flightState.getSeatByBookingId(cmd.cancelBookingRequest.bookingId)
+    if (bookedSeatId.isEmpty) {
+      Effect.reply(cmd.replyTo)(Rejected(s"Booking with id ${cmd.cancelBookingRequest.bookingId} does not exist"))
     }
     else {
       Effect
-        .persist(BookingCancelled(cmd.seatId))
+        .persist(BookingCancelled(bookedSeatId.get))
         .thenReply(cmd.replyTo)(_ => Accepted())
     }
   }
