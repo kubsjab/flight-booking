@@ -16,6 +16,7 @@ object Broker {
   // command
   sealed trait Command extends CborSerializable
   final case class BookFlight(airlineId: String, flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[BookingOperationResult]) extends Command
+  final case class CancelFlightBooking(airlineId: String, flightId: String, bookingId: String, replyTo: ActorRef[OperationResult]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
@@ -49,6 +50,7 @@ object Broker {
     (state, cmd) =>
       cmd match {
         case c: BookFlight => bookFlight(context, state, c)
+        case c: CancelFlightBooking => cancelFlightBooking(context, state, c)
         case _ => Effect.none
       }
   }
@@ -62,12 +64,23 @@ object Broker {
   private def bookFlight(context: ActorContext[Command], state: State, cmd: BookFlight): Effect[Event, State] = {
     state.airlineActors.get(cmd.airlineId) match {
       case Some(airline) =>
-        context.spawnAnonymous(FlightBooking(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo))
+        context.spawnAnonymous(FlightBooking.bookFlight(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo))
       case None =>
         cmd.replyTo ! BookingRejected(s"Unable to find airline with id: [${cmd.airlineId}]")
     }
     Effect.none
   }
+
+  private def cancelFlightBooking(context: ActorContext[Command], state: State, cmd: CancelFlightBooking): Effect[Event, State] = {
+    state.airlineActors.get(cmd.airlineId) match {
+      case Some(airline) =>
+        context.spawnAnonymous(FlightBooking.cancelFlightBooking(airline, cmd.flightId, cmd.bookingId, cmd.replyTo))
+      case None =>
+        cmd.replyTo ! Rejected(s"Unable to find airline with id: [${cmd.airlineId}]")
+    }
+    Effect.none
+  }
+
 
 }
 
