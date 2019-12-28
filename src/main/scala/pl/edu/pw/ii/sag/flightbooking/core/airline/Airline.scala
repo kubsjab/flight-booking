@@ -1,5 +1,7 @@
 package pl.edu.pw.ii.sag.flightbooking.core.airline
 
+import java.time.ZonedDateTime
+
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
@@ -7,7 +9,7 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightDetails, FlightInfo}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.query.FlightQuery
-import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.{BookingRequest, CancelBookingRequest}
+import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 case class AirlineData(airlineId: String, name: String)
@@ -23,8 +25,8 @@ object Airline {
   final case class GetFlights(replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class GetFlightsBySource(source: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class GetFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
-  final case class BookFlight(bookingRequest: BookingRequest, replyTo: ActorRef[Flight.BookingOperationResult]) extends Command
-  final case class CancelFlightBooking(cancelBookingRequest: CancelBookingRequest, replyTo: ActorRef[Flight.OperationResult]) extends Command
+  final case class BookFlight(flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[Flight.BookingOperationResult]) extends Command
+  final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.OperationResult]) extends Command
   private final case class TerminateFlight(flightId: String, flight: ActorRef[Flight.Command]) extends Command
 
   // event
@@ -133,17 +135,17 @@ object Airline {
   }
 
   private def bookFlight(state: State, cmd: BookFlight): Effect[Event, State] = {
-    state.flightActors.get(cmd.bookingRequest.flightId) match {
-      case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.Book(cmd.bookingRequest, cmd.replyTo)
-      case None => cmd.replyTo ! Flight.BookingRejected(s"Unable to find flight with id: [${cmd.bookingRequest.flightId}]")
+    state.flightActors.get(cmd.flightId) match {
+      case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.Book(cmd.flightId, cmd.seatId, cmd.customer, cmd.replyTo)
+      case None => cmd.replyTo ! Flight.BookingRejected(s"Unable to find flight with id: [${cmd.flightId}]")
     }
     Effect.none
   }
 
   private def cancelFlightBooking(state: State, cmd: CancelFlightBooking): Effect[Event, State] = {
-    state.flightActors.get(cmd.cancelBookingRequest.flightId) match {
-      case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.CancelBooking(cmd.cancelBookingRequest, cmd.replyTo)
-      case None => cmd.replyTo ! Flight.Rejected(s"Unable to find flight with id: [${cmd.cancelBookingRequest.flightId}]")
+    state.flightActors.get(cmd.flightId) match {
+      case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.CancelBooking(cmd.flightId, cmd.bookingId, cmd.replyTo)
+      case None => cmd.replyTo ! Flight.Rejected(s"Unable to find flight with id: [${cmd.flightId}]")
     }
     Effect.none
   }

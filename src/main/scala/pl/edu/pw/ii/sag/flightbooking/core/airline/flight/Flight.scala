@@ -7,7 +7,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
-import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.{BookingRequest, CancelBookingRequest}
+import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
@@ -32,8 +32,8 @@ object Flight {
   // command
   sealed trait Command extends CborSerializable
   final case class GetFlightDetails(replyTo: ActorRef[FlightDetailsMessage]) extends Command
-  final case class Book(booking: BookingRequest, replyTo: ActorRef[BookingOperationResult]) extends Command
-  final case class CancelBooking(cancelBookingRequest: CancelBookingRequest, replyTo: ActorRef[OperationResult]) extends Command
+  final case class Book(flightId: String, seatId: String, customer: Customer, replyTo: ActorRef[BookingOperationResult]) extends Command
+  final case class CancelBooking(flightId: String, bookingId: String, replyTo: ActorRef[OperationResult]) extends Command
   final case class CloseFlight(flightId: String, replyTo: ActorRef[OperationResult]) extends Command
 
   // event
@@ -110,7 +110,5 @@ object Flight {
       case FlightBookingStrategyType.OVERBOOKING => ???
     }
   }
-
-
 
 }
