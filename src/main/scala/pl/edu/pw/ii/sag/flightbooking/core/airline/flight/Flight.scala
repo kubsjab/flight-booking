@@ -6,7 +6,6 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
-import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.Flight.Command
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.domain.booking.BookingRequest
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
@@ -17,13 +16,11 @@ object FlightBookingStrategyType extends Enumeration {
     val STANDARD, OVERBOOKING = Value
 }
 
-case class FlightDetailsWrapper(flight: ActorRef[Command], flightDetails: FlightDetailsData)
-
-case class FlightDetailsData(open: Boolean, flightData: FlightData, seatReservations: Map[String, Boolean]){
-  def flightId: String = flightData.flightId
+case class FlightDetails(flightInfo: FlightInfo, open: Boolean, seatReservations: Map[String, Boolean]){
+  def flightId: String = flightInfo.flightId
 }
 
-case class FlightData(flightId: String,
+case class FlightInfo(flightId: String,
                       plane: Plane,
                       startDatetime: ZonedDateTime,
                       endDatetime: ZonedDateTime,
@@ -50,11 +47,11 @@ object Flight {
   sealed trait OperationResult extends CommandReply
   final case class Accepted() extends OperationResult
   final case class Rejected(reason: String) extends OperationResult
-  final case class FlightDetailsMessage(flightDetailsWrapper: FlightDetailsWrapper) extends CommandReply
+  final case class FlightDetailsMessage(flightDetails: FlightDetails) extends CommandReply
 
   //state
   sealed trait State extends CborSerializable {
-    val flightInfo: FlightData
+    val flightInfo: FlightInfo
     val seatReservations: Map[String, Option[Booking]]
 
     def applyEvent(event: Event): State
@@ -67,7 +64,7 @@ object Flight {
 
   def buildId(customId: String): String = s"flight-$customId"
 
-  case class OpenedFlight(flightInfo: FlightData, seatReservations: Map[String, Option[Booking]]) extends State {
+  case class OpenedFlight(flightInfo: FlightInfo, seatReservations: Map[String, Option[Booking]]) extends State {
     override def applyEvent(event: Event): State = {
       event match {
         case Booked(seatId, reservation) => copy(flightInfo, seatReservations.updated(seatId, Some(reservation)))
@@ -77,17 +74,17 @@ object Flight {
     }
   }
 
-  case class ClosedFlight(flightInfo: FlightData, seatReservations: Map[String, Option[Booking]]) extends State {
+  case class ClosedFlight(flightInfo: FlightInfo, seatReservations: Map[String, Option[Booking]]) extends State {
     override def applyEvent(event: Event): State = {
       throw new IllegalStateException(s"Unexpected event [$event] in state [ClosedFlight]")
     }
   }
 
-  def apply(flightData: FlightData, flightBookingStrategyType: FlightBookingStrategyType): Behavior[Command] =
+  def apply(flightInfo: FlightInfo, flightBookingStrategyType: FlightBookingStrategyType): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(flightData.flightId),
-        emptyState = OpenedFlight(flightData, flightData.plane.seats.map(seat => seat.id -> None).toMap),
+        persistenceId = PersistenceId.ofUniqueId(flightInfo.flightId),
+        emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
         commandHandler = commandHandler(context, flightBookingStrategyType),
         eventHandler = eventHandler)
     }

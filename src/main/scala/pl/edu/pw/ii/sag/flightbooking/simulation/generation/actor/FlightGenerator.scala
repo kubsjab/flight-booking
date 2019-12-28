@@ -94,8 +94,8 @@ object FlightGenerator {
 
     val flightsCount = Random.between(cmd.minCount, cmd.maxCount)
     (0 to flightsCount).foreach(_ => {
-      val flightData = FlightDataGenerator.generateRandomFlightData()
-      cmd.airline ! Airline.CreateFlight(flightData, flightBookingStrategy, airlineResponseWrapper)
+      val flightInfo = FlightDataGenerator.generateRandomFlightInfo()
+      cmd.airline ! Airline.CreateFlight(flightInfo, flightBookingStrategy, airlineResponseWrapper)
     })
 
     Behaviors.same

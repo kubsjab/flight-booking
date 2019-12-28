@@ -19,7 +19,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
 
   private def airlineData(): AirlineData = AirlineData("airline-1", "Airline name")
 
-  private def randomFlightData(): FlightData = FlightData(
+  private def randomFlightInfo(): FlightInfo = FlightInfo(
     UUID.randomUUID().toString,
     Plane("Boeing 787", (1 to 100).map(x => Seat(x.toString))),
     ZonedDateTime.now(),
@@ -33,29 +33,29 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
     "create flight" in {
       val airline = testKit.spawn(Airline(airlineData()))
       val probe = testKit.createTestProbe[Airline.OperationResult]
-      val flightData = randomFlightData()
+      val flightInfo = randomFlightInfo()
 
-      airline ! Airline.CreateFlight(flightData, FlightBookingStrategyType.STANDARD, probe.ref)
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
 
-      probe.expectMessage(Airline.FlightCreationConfirmed(flightData.flightId))
+      probe.expectMessage(Airline.FlightCreationConfirmed(flightInfo.flightId))
     }
 
     "reject already created flight" in {
       val airline = testKit.spawn(Airline(airlineData()))
       val probe = testKit.createTestProbe[Airline.OperationResult]
-      val flightData = randomFlightData()
+      val flightInfo = randomFlightInfo()
 
-      airline ! Airline.CreateFlight(flightData, FlightBookingStrategyType.STANDARD, probe.ref)
-      probe.expectMessage(Airline.FlightCreationConfirmed(flightData.flightId))
-      airline ! Airline.CreateFlight(flightData, FlightBookingStrategyType.STANDARD, probe.ref)
-      probe.expectMessage(Airline.Rejected(s"Flight - [${flightData.flightId}] already exists"))
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
+      probe.expectMessage(Airline.FlightCreationConfirmed(flightInfo.flightId))
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
+      probe.expectMessage(Airline.Rejected(s"Flight - [${flightInfo.flightId}] already exists"))
     }
 
     "return all existing flights" in {
       val airline = testKit.spawn(Airline(airlineData()))
       val createFlightProbe = testKit.createTestProbe[Airline.OperationResult]
-      val flightData = randomFlightData()
-      airline ! Airline.CreateFlight(flightData, FlightBookingStrategyType.STANDARD, createFlightProbe.ref)
+      val flightInfo = randomFlightInfo()
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, createFlightProbe.ref)
 
       val getFlightsProbe = testKit.createTestProbe[Airline.FlightDetailsCollection]
       airline ! Airline.GetFlights(getFlightsProbe.ref)

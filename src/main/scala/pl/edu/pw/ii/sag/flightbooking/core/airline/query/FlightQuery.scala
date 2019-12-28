@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.core.airline.query
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
-import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightDetailsWrapper}
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightDetails}
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 import pl.edu.pw.ii.sag.flightbooking.util.Aggregator
 
@@ -13,7 +13,7 @@ object FlightQuery {
 
   sealed trait Command extends CborSerializable
 
-  final case class AggregatedFlights(airlines: Seq[FlightDetailsWrapper], replyTo: ActorRef[Airline.FlightDetailsCollection]) extends Command
+  final case class AggregatedFlights(flights: Seq[FlightDetails], replyTo: ActorRef[Airline.FlightDetailsCollection]) extends Command
 
   def apply(
              flightActors: Seq[ActorRef[Flight.Command]],
@@ -26,12 +26,12 @@ object FlightQuery {
           },
           expectedReplies = flightActors.size,
           replyTo = context.self,
-          aggregateReplies = flightDetailsMsgSeq => AggregatedFlights(flightDetailsMsgSeq.map(fdm => fdm.flightDetailsWrapper), replyToWhenCompleted),
+          aggregateReplies = flightDetailsMsgSeq => AggregatedFlights(flightDetailsMsgSeq.map(fdm => fdm.flightDetails), replyToWhenCompleted),
           timeout = 5.seconds))
 
       Behaviors.receiveMessage {
-        case AggregatedFlights(airlines, replyTo) =>
-          replyTo ! Airline.FlightDetailsCollection(airlines)
+        case AggregatedFlights(flights, replyTo) =>
+          replyTo ! Airline.FlightDetailsCollection(flights)
           Behaviors.stopped
       }
     }

@@ -37,13 +37,10 @@ abstract class FlightBookingStrategy {
   protected def getFlightDetails(context: ActorContext[Flight.Command], flightState: State, cmd: GetFlightDetails): ReplyEffect[Event, State] = {
     Effect.reply(cmd.replyTo)(
       FlightDetailsMessage(
-        FlightDetailsWrapper(
-          context.self,
-          FlightDetailsData(
-            flightState.isInstanceOf[OpenedFlight],
-            flightState.flightInfo,
-            flightState.seatReservations.map { case (k, v) => (k, v.isDefined) }
-          )
+        FlightDetails(
+          flightState.flightInfo,
+          flightState.isInstanceOf[OpenedFlight],
+          flightState.seatReservations.map { case (k, v) => (k, v.isDefined) }
         )
       )
     )
