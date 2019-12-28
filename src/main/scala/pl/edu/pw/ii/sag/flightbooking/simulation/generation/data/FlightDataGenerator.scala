@@ -12,7 +12,7 @@ object FlightDataGenerator {
   def generateRandomFlightInfo(): FlightInfo = {
     val startDateTime = ZonedDateTime.now()
     val endDateTime = startDateTime.plusHours(3)
-    FlightInfo(UUID.randomUUID().toString, PlaneGenerator.getRandomPlane(), startDateTime, endDateTime, "Warsaw", "London")
+    FlightInfo(UUID.randomUUID().toString, "", PlaneGenerator.getRandomPlane(), startDateTime, endDateTime, "Warsaw", "London")
   }
 
 }

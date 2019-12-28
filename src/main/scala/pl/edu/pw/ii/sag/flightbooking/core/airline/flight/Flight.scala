@@ -21,6 +21,7 @@ case class FlightDetails(flightInfo: FlightInfo, open: Boolean, seatReservations
 }
 
 case class FlightInfo(flightId: String,
+                      airlineId: String,
                       plane: Plane,
                       startDatetime: ZonedDateTime,
                       endDatetime: ZonedDateTime,

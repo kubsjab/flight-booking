@@ -39,10 +39,10 @@ object Airline {
   sealed trait OperationResult extends CommandReply
   final case class FlightCreationConfirmed(flightId: String) extends OperationResult
   final case class Rejected(reason: String) extends OperationResult
-  final case class FlightDetailsCollection(airlines: Seq[FlightDetails]) extends CommandReply
+  final case class FlightDetailsCollection(flights: Seq[FlightDetails]) extends CommandReply
 
   //state
-  final case class State(flightActors: Map[String, FlightActorWrapper]) extends CborSerializable
+  final case class State(airlineId: String, flightActors: Map[String, FlightActorWrapper]) extends CborSerializable
 
   def buildId(customId: String): String = s"airline-$customId"
 
@@ -50,7 +50,7 @@ object Airline {
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(airlineData.airlineId),
-        emptyState = State(Map.empty),
+        emptyState = State(airlineData.airlineId, Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
     }
@@ -75,21 +75,31 @@ object Airline {
         val flight = context.spawn(Flight(flightInfo,flightBookingStrategy), flightInfo.flightId)
         context.watchWith(flight, TerminateFlight(flightInfo.flightId, flight))
         context.log.info(s"Flight: [${flightInfo.flightId}] has been created")
-        State(state.flightActors.updated(flightInfo.flightId, FlightActorWrapper(flightInfo, flight)))
+        State(state.airlineId, state.flightActors.updated(flightInfo.flightId, FlightActorWrapper(flightInfo, flight)))
       case FlightTerminated(flightId, flight) =>
         context.log.info(s"Flight: [${flightId}] has been terminated")
         context.unwatch(flight)
-        State(state.flightActors - flightId)
+        State(state.airlineId, state.flightActors - flightId)
     }
   }
 
   private def createFlight(context: ActorContext[Command], state: State, cmd: CreateFlight): ReplyEffect[Event, State] = {
-    state.flightActors.get(cmd.flightInfo.flightId) match {
-      case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Flight - [${cmd.flightInfo.flightId}] already exists"))
+    val providedFlightInfo = cmd.flightInfo
+    state.flightActors.get(providedFlightInfo.flightId) match {
+      case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Flight - [${providedFlightInfo.flightId}] already exists"))
       case None =>
+        val flightInfo = FlightInfo(
+          providedFlightInfo.flightId,
+          state.airlineId,
+          providedFlightInfo.plane,
+          providedFlightInfo.startDatetime,
+          providedFlightInfo.endDatetime,
+          providedFlightInfo.source,
+          providedFlightInfo.destination)
+
         Effect
-          .persist(FlightCreated(cmd.flightInfo, cmd.flightBookingStrategy))
-          .thenReply(cmd.replyTo)(_ => FlightCreationConfirmed(cmd.flightInfo.flightId))
+          .persist(FlightCreated(flightInfo, cmd.flightBookingStrategy))
+          .thenReply(cmd.replyTo)(_ => FlightCreationConfirmed(flightInfo.flightId))
     }
   }
 

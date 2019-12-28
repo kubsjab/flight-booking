@@ -21,6 +21,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
 
   private def randomFlightInfo(): FlightInfo = FlightInfo(
     UUID.randomUUID().toString,
+    "airline-1",
     Plane("Boeing 787", (1 to 100).map(x => Seat(x.toString))),
     ZonedDateTime.now(),
     ZonedDateTime.now(),
@@ -60,7 +61,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
       val getFlightsProbe = testKit.createTestProbe[Airline.FlightDetailsCollection]
       airline ! Airline.GetFlights(getFlightsProbe.ref)
       val response = getFlightsProbe.receiveMessage(FiniteDuration(5, TimeUnit.SECONDS))
-      response.airlines.size should !==(0)
+      response.flights.size should !==(0)
     }
 
 

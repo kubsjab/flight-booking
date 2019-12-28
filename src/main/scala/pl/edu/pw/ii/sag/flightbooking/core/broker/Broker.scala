@@ -7,6 +7,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
@@ -17,6 +18,9 @@ object Broker {
   sealed trait Command extends CborSerializable
   final case class BookFlight(airlineId: String, flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[BookingOperationResult]) extends Command
   final case class CancelFlightBooking(airlineId: String, flightId: String, bookingId: String, replyTo: ActorRef[OperationResult]) extends Command
+  final case class GetAirlineFlights(replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
+  final case class GetAirlineFlightsBySource(source: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
+  final case class GetAirlineFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
@@ -30,6 +34,7 @@ object Broker {
   sealed trait BookingOperationResult extends CommandReply
   final case class BookingAccepted(bookingId: String) extends BookingOperationResult
   final case class BookingRejected(reason: String) extends BookingOperationResult
+  final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]]) extends CommandReply
 
   //state
   final case class State(airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
@@ -51,6 +56,9 @@ object Broker {
       cmd match {
         case c: BookFlight => bookFlight(context, state, c)
         case c: CancelFlightBooking => cancelFlightBooking(context, state, c)
+        case c: GetAirlineFlights => getAirlineFlights(context, state, c)
+        case c: GetAirlineFlightsBySource => getAirlineFlightsBySource(context, state, c)
+        case c: GetAirlineFlightsBySourceAndDestination => getAirlineFlightsBySourceAndDestination(context, state, c)
         case _ => Effect.none
       }
   }
@@ -81,6 +89,23 @@ object Broker {
     Effect.none
   }
 
+  private def getAirlineFlights(context: ActorContext[Command], state: State, cmd: GetAirlineFlights): Effect[Event, State] = {
+    val airlineActors = state.airlineActors.values.toSeq
+    context.spawnAnonymous(AirlineFlightsQuery.getFlights(airlineActors, cmd.replyTo))
+    Effect.none
+  }
+
+  private def getAirlineFlightsBySource(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySource): Effect[Event, State] = {
+    val airlineActors = state.airlineActors.values.toSeq
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySource(cmd.source, airlineActors, cmd.replyTo))
+    Effect.none
+  }
+
+  private def getAirlineFlightsBySourceAndDestination(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySourceAndDestination): Effect[Event, State] = {
+    val airlineActors = state.airlineActors.values.toSeq
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySourceAndDestination(cmd.source, cmd.destination, airlineActors, cmd.replyTo))
+    Effect.none
+  }
 
 }
 
