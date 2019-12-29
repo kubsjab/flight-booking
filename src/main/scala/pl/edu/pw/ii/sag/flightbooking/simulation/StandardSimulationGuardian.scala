@@ -4,6 +4,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.AirlineManager
 import pl.edu.pw.ii.sag.flightbooking.core.broker.BrokerManager
+import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
 
@@ -17,7 +18,7 @@ object StandardSimulationGuardian extends Simulation {
 
   final case class BrokersGenerated(response: BrokerGenerator.OperationResult) extends Simulation.Message
 
-  final case class ClientsGenerated() extends Simulation.Message
+  final case class ClientsGenerated(response: ClientGenerator.OperationResult) extends Simulation.Message
 
   // TODO Move params to configuration https://doc.akka.io/docs/akka/current/extending-akka.html#extending-akka-settings
   val airlinesCount = 3
@@ -26,6 +27,8 @@ object StandardSimulationGuardian extends Simulation {
   val brokersCount = 10
   val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
   val maxAirlinesInBrokerCount: Int = airlinesCount
+  val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
+  val maxBrokersInClientCount: Int = brokersCount
   val clientsCount = 100
 
   /**
@@ -50,6 +53,8 @@ object StandardSimulationGuardian extends Simulation {
         airlinesGenerated(context, airlineManager, response)
       case BrokersGenerated(response: BrokerGenerator.OperationResult) =>
         brokersGenerated(context, response)
+      case ClientsGenerated(response: ClientGenerator.OperationResult) =>
+        clientsGenerated(context, response)
       case _ => Behaviors.same
     }
 
@@ -93,13 +98,30 @@ object StandardSimulationGuardian extends Simulation {
                                 response: BrokerGenerator.OperationResult): Behavior[Simulation.Message] = {
     response match {
       case BrokerGenerator.BrokerGenerationCompleted(brokerIds) if brokerIds.size == brokersCount =>
-        generateClients(context, clientsCount) // TODO Probably when brokers and clients (mainly clients) are created, we should create some initial booking requests (similarly to airlines and flights)
+        val clientManager = context.spawn(ClientManager(), "client-manager")
+        val clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult] = context.messageAdapter(rsp => ClientsGenerated(rsp))
+        generateClients(context, clientManager, brokerIds, clientsCount, minBrokersInClientCount, maxBrokersInClientCount, clientGeneratorResponseWrapper)
         Behaviors.same
       case BrokerGenerator.BrokerGenerationCompleted(_) =>
         context.log.error("Brokers count does not match expected brokers count")
         Behaviors.stopped
       case BrokerGenerator.Rejected(reason) =>
         context.log.error("Failed to generate brokers. " + reason)
+        Behaviors.stopped
+    }
+  }
+
+  private def clientsGenerated(context: ActorContext[Simulation.Message],
+                               response: ClientGenerator.OperationResult): Behavior[Simulation.Message] = {
+    response match {
+      case ClientGenerator.ClientGenerationCompleted(clientIds) if clientIds.size == clientsCount =>
+        // TODO Probably when brokers and clients (mainly clients) are created, we should create some initial booking requests (similarly to airlines and flights)
+        Behaviors.same
+      case ClientGenerator.ClientGenerationCompleted(_) =>
+        context.log.error("Clients count does not match expected clients count")
+        Behaviors.stopped
+      case ClientGenerator.Rejected(reason) =>
+        context.log.error("Failed to generate clients. " + reason)
         Behaviors.stopped
     }
   }
@@ -124,9 +146,15 @@ object StandardSimulationGuardian extends Simulation {
     brokerGenerator ! BrokerGenerator.GenerateStandardBrokers(brokersCount, airlineIds, minAirlinesInBrokerCount, maxAirlinesInBrokerCount, brokerGeneratorResponseWrapper)
   }
 
-  private def generateClients(context: ActorContext[Simulation.Message], clientsCount: Int): Unit = {
-    val clientGenerator = context.spawn(ClientGenerator(), "client-generator")
-    clientGenerator ! ClientGenerator.GenerateStandardClients(clientsCount)
+  private def generateClients(context: ActorContext[Simulation.Message],
+                              clientManager: ActorRef[ClientManager.Command],
+                              brokersIds: Set[String],
+                              clientsCount: Int,
+                              minBrokersInClientCount: Int,
+                              maxBrokersInClientCount: Int,
+                              clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult]): Unit = {
+    val clientGenerator = context.spawn(ClientGenerator(clientManager), "client-generator")
+    clientGenerator ! ClientGenerator.GenerateStandardClients(clientsCount, brokersIds, minBrokersInClientCount, maxBrokersInClientCount, clientGeneratorResponseWrapper)
   }
 
 }
