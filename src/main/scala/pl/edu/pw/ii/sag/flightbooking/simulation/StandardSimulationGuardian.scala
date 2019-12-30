@@ -2,7 +2,6 @@ package pl.edu.pw.ii.sag.flightbooking.simulation
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.typesafe.config.ConfigFactory
 import pl.edu.pw.ii.sag.flightbooking.core.airline.AirlineManager
 import pl.edu.pw.ii.sag.flightbooking.core.broker.BrokerManager
 import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
