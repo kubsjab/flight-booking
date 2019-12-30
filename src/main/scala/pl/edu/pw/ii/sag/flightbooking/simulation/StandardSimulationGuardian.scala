@@ -5,6 +5,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.AirlineManager
 import pl.edu.pw.ii.sag.flightbooking.core.broker.BrokerManager
 import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
+import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
 
@@ -20,17 +21,6 @@ object StandardSimulationGuardian extends Simulation {
 
   final case class ClientsGenerated(response: ClientGenerator.OperationResult) extends Simulation.Message
 
-  // TODO Move params to configuration https://doc.akka.io/docs/akka/current/extending-akka.html#extending-akka-settings
-  val airlinesCount = 3
-  val minFlightCount = 10
-  val maxFlightCount = 20
-  val brokersCount = 10
-  val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
-  val maxAirlinesInBrokerCount: Int = airlinesCount
-  val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
-  val maxBrokersInClientCount: Int = brokersCount
-  val clientsCount = 100
-
   /**
    * Behaviour of this Actor defines initial simulation setup. In general whole simulation consists of 3 main actor layers:
    * - airlines
@@ -45,7 +35,6 @@ object StandardSimulationGuardian extends Simulation {
   def apply(): Behavior[Simulation.Message] = Behaviors.setup[Simulation.Message] { context =>
     val airlineManager = context.spawn(AirlineManager(), "airline-manager")
     val airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult] = context.messageAdapter(rsp => AirlinesGenerated(rsp))
-
     Behaviors.receiveMessage[Simulation.Message] {
       case Simulation.Start() =>
         simulationStarted(context, airlineManager, airlineGeneratorResponseWrapper)
@@ -63,7 +52,7 @@ object StandardSimulationGuardian extends Simulation {
   private def simulationStarted(context: ActorContext[Simulation.Message],
                                 airlineManager: ActorRef[AirlineManager.Command],
                                 airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult]): Behavior[Simulation.Message] = {
-    generateAirlines(context, airlineManager, airlineGeneratorResponseWrapper, airlinesCount)
+    generateAirlines(context, airlineManager, airlineGeneratorResponseWrapper, Configuration.airlinesCount)
     Behaviors.same
   }
 
@@ -79,11 +68,11 @@ object StandardSimulationGuardian extends Simulation {
                                 airlineManager: ActorRef[AirlineManager.Command],
                                 response: AirlineGenerator.OperationResult): Behavior[Simulation.Message] = {
     response match {
-      case AirlineGenerator.AirlineGenerationCompleted(airlineIds) if airlineIds.size == airlinesCount =>
-        generateFlights(context, airlineManager, airlineIds, minFlightCount, maxFlightCount)
+      case AirlineGenerator.AirlineGenerationCompleted(airlineIds) if airlineIds.size == Configuration.airlinesCount =>
+        generateFlights(context, airlineManager, airlineIds, Configuration.minFlightCount, Configuration.maxFlightCount)
         val brokerManager = context.spawn(BrokerManager(), "broker-manager")
         val brokerGeneratorResponseWrapper: ActorRef[BrokerGenerator.OperationResult] = context.messageAdapter(rsp => BrokersGenerated(rsp))
-        generateBrokers(context, brokerManager, airlineIds, brokersCount, minAirlinesInBrokerCount, maxAirlinesInBrokerCount, brokerGeneratorResponseWrapper)
+        generateBrokers(context, brokerManager, airlineIds, Configuration.brokersCount, Configuration.minAirlinesInBrokerCount, Configuration.maxAirlinesInBrokerCount, brokerGeneratorResponseWrapper)
         Behaviors.same
       case AirlineGenerator.AirlineGenerationCompleted(_) =>
         context.log.error("Airlines count does not match expected airlines count")
@@ -97,10 +86,10 @@ object StandardSimulationGuardian extends Simulation {
   private def brokersGenerated(context: ActorContext[Simulation.Message],
                                 response: BrokerGenerator.OperationResult): Behavior[Simulation.Message] = {
     response match {
-      case BrokerGenerator.BrokerGenerationCompleted(brokerIds) if brokerIds.size == brokersCount =>
+      case BrokerGenerator.BrokerGenerationCompleted(brokerIds) if brokerIds.size == Configuration.brokersCount =>
         val clientManager = context.spawn(ClientManager(), "client-manager")
         val clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult] = context.messageAdapter(rsp => ClientsGenerated(rsp))
-        generateClients(context, clientManager, brokerIds, clientsCount, minBrokersInClientCount, maxBrokersInClientCount, clientGeneratorResponseWrapper)
+        generateClients(context, clientManager, brokerIds, Configuration.clientsCount, Configuration.minBrokersInClientCount, Configuration.maxBrokersInClientCount, clientGeneratorResponseWrapper)
         Behaviors.same
       case BrokerGenerator.BrokerGenerationCompleted(_) =>
         context.log.error("Brokers count does not match expected brokers count")
@@ -114,7 +103,7 @@ object StandardSimulationGuardian extends Simulation {
   private def clientsGenerated(context: ActorContext[Simulation.Message],
                                response: ClientGenerator.OperationResult): Behavior[Simulation.Message] = {
     response match {
-      case ClientGenerator.ClientGenerationCompleted(clientIds) if clientIds.size == clientsCount =>
+      case ClientGenerator.ClientGenerationCompleted(clientIds) if clientIds.size == Configuration.clientsCount =>
         // TODO Probably when brokers and clients (mainly clients) are created, we should create some initial booking requests (similarly to airlines and flights)
         Behaviors.same
       case ClientGenerator.ClientGenerationCompleted(_) =>
