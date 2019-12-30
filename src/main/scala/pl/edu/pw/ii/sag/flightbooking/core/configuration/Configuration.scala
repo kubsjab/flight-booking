@@ -10,6 +10,10 @@ object Configuration {
 
   val initialMinFlightCount = configuration.getInt("akka.configuration.simulation.flight.initial.minCount")
   val initialMaxFlightCount = configuration.getInt("akka.configuration.simulation.flight.initial.maxCount")
+  val flightSchedulerEnabled = configuration.getBoolean("akka.configuration.simulation.flight.scheduler.enabled")
+  val flightSchedulerDelay = configuration.getInt("akka.configuration.simulation.flight.scheduler.delay")
+  val schedulerMinFlightCount = configuration.getInt("akka.configuration.simulation.flight.scheduler.minCount")
+  val schedulerMaxFlightCount = configuration.getInt("akka.configuration.simulation.flight.scheduler.maxCount")
 
   val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
   val maxAirlinesInBrokerCount: Int = airlinesCount

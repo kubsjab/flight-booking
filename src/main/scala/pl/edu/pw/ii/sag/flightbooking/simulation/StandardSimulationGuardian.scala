@@ -8,6 +8,10 @@ import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
 import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
+import pl.edu.pw.ii.sag.flightbooking.simulation.generation.data.FlightGenScheduledTaskData
+
+import scala.concurrent.duration
+import scala.concurrent.duration.FiniteDuration
 
 object StandardSimulationGuardian extends Simulation {
 
@@ -61,14 +65,6 @@ object StandardSimulationGuardian extends Simulation {
     Behaviors.same
   }
 
-  private def generateAirlines(context: ActorContext[Simulation.Message],
-                               airlineManager: ActorRef[AirlineManager.Command],
-                               airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult],
-                               airlinesCount: Int): Unit = {
-    val airlineGenerator = context.spawn(AirlineGenerator(airlineManager), "airline-generator")
-    airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(airlinesCount, airlineGeneratorResponseWrapper)
-  }
-
   private def airlinesGenerated(context: ActorContext[Simulation.Message],
                                 airlineManager: ActorRef[AirlineManager.Command],
                                 brokerManager: ActorRef[BrokerManager.Command],
@@ -76,7 +72,8 @@ object StandardSimulationGuardian extends Simulation {
                                 brokerGeneratorResponseWrapper: ActorRef[BrokerGenerator.OperationResult]): Behavior[Simulation.Message] = {
     response match {
       case AirlineGenerator.AirlineGenerationCompleted(airlineIds) if airlineIds.size == Configuration.airlinesCount =>
-        generateFlights(context, airlineManager, airlineIds, Configuration.minFlightCount, Configuration.maxFlightCount)
+        generateFlights(context, airlineManager, airlineIds, Configuration.initialMinFlightCount, Configuration.initialMaxFlightCount,
+          FlightGenScheduledTaskData(Configuration.flightSchedulerEnabled, Configuration.schedulerMinFlightCount, Configuration.schedulerMaxFlightCount, FiniteDuration(Configuration.flightSchedulerDelay, duration.SECONDS)))
         generateBrokers(context, airlineManager, brokerManager, airlineIds, Configuration.brokersCount, Configuration.minAirlinesInBrokerCount, Configuration.maxAirlinesInBrokerCount, brokerGeneratorResponseWrapper)
         Behaviors.same
       case AirlineGenerator.AirlineGenerationCompleted(_) =>
@@ -120,13 +117,26 @@ object StandardSimulationGuardian extends Simulation {
     }
   }
 
+  private def generateAirlines(context: ActorContext[Simulation.Message],
+                               airlineManager: ActorRef[AirlineManager.Command],
+                               airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult],
+                               airlinesCount: Int): Unit = {
+    val airlineGenerator = context.spawn(AirlineGenerator(airlineManager), "airline-generator")
+    airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(airlinesCount, airlineGeneratorResponseWrapper)
+  }
+
   private def generateFlights(context: ActorContext[Simulation.Message],
                               airlineManager: ActorRef[AirlineManager.Command],
                               airlineIds: Set[String],
                               minFlightCount: Int,
-                              maxFlightCount: Int): Unit = {
+                              maxFlightCount: Int,
+                              scheduledTaskData: FlightGenScheduledTaskData): Unit = {
     val flightGenerator = context.spawn(FlightGenerator(airlineManager), "flight-generator")
     flightGenerator ! FlightGenerator.GenerateStandardFlights(airlineIds, minFlightCount, maxFlightCount)
+    if(scheduledTaskData.scheduleEnabled){
+      flightGenerator ! FlightGenerator.InitScheduledStandardFlightsGeneration(
+        FlightGenerator.GenerateStandardFlights(airlineIds, scheduledTaskData.minCount, scheduledTaskData.maxCount), scheduledTaskData.delay)
+    }
   }
 
   private def generateBrokers(context: ActorContext[Simulation.Message],
@@ -151,5 +161,6 @@ object StandardSimulationGuardian extends Simulation {
     val clientGenerator = context.spawn(ClientGenerator(clientManager), "client-generator")
     clientGenerator ! ClientGenerator.GenerateStandardClients(clientsCount, brokersIds, minBrokersInClientCount, maxBrokersInClientCount, clientGeneratorResponseWrapper)
   }
+
 
 }
