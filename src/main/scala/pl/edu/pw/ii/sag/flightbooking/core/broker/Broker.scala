@@ -21,9 +21,11 @@ object Broker {
   final case class GetAirlineFlights(replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySource(source: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
+  private final case class RemoveAirline(airlineId: String, airline: ActorRef[Airline.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
+  final case class AirlineTerminated(airlineId: String, airline: ActorRef[Airline.Command]) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -41,11 +43,12 @@ object Broker {
 
   def buildId(customId: String): String = s"broker-$customId"
 
-  def apply(brokerData: BrokerData): Behavior[Command] = {
+  def apply(brokerData: BrokerData, airlines:Map[String, ActorRef[Airline.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
+      airlines.foreach(airlineInfo => context.watchWith(airlineInfo._2, RemoveAirline(airlineInfo._1, airlineInfo._2)))
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(brokerData.brokerId),
-        emptyState = State(Map.empty),
+        emptyState = State(airlines),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
     }
@@ -59,14 +62,23 @@ object Broker {
         case c: GetAirlineFlights => getAirlineFlights(context, state, c)
         case c: GetAirlineFlightsBySource => getAirlineFlightsBySource(context, state, c)
         case c: GetAirlineFlightsBySourceAndDestination => getAirlineFlightsBySourceAndDestination(context, state, c)
+        case c: RemoveAirline => airlineTerminated(context, state, c)
         case _ => Effect.none
       }
   }
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
+      case AirlineTerminated(airlineId, airline) =>
+        context.log.info(s"Airline: [${airlineId}] has been terminated. Removing from Broker.")
+        context.unwatch(airline)
+        State(state.airlineActors - airlineId)
       case _ => state
     }
+  }
+
+  private def airlineTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveAirline): Effect[Event, State] ={
+    Effect.persist(AirlineTerminated(cmd.airlineId, cmd.airline))
   }
 
   private def bookFlight(context: ActorContext[Command], state: State, cmd: BookFlight): Effect[Event, State] = {

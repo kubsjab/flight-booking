@@ -4,20 +4,21 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 
 object BrokerManager {
   // command
   sealed trait Command extends CborSerializable
-  final case class CreateBroker(brokerData: BrokerData, replyTo: ActorRef[OperationResult]) extends Command
+  final case class CreateBroker(brokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]], replyTo: ActorRef[OperationResult]) extends Command
   final case class GetBroker(brokerId: String, replyTo: ActorRef[BrokerCollection]) extends Command
   final case class GetBrokers(replyTo: ActorRef[BrokerCollection]) extends Command
   private final case class TerminateBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-  final case class BrokerCreated(BrokerData: BrokerData) extends Event
+  final case class BrokerCreated(BrokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]]) extends Event
   final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
 
   // reply
@@ -51,8 +52,8 @@ object BrokerManager {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case BrokerCreated(brokerData) =>
-        val broker = context.spawn(Broker(brokerData), brokerData.brokerId)
+      case BrokerCreated(brokerData, airlines) =>
+        val broker = context.spawn(Broker(brokerData, airlines), brokerData.brokerId)
         context.watchWith(broker, TerminateBroker(brokerData.brokerId, broker))
         context.log.info(s"Broker: [${brokerData.brokerId}] has been created")
         State(state.brokerActors.updated(brokerData.brokerId, broker))
@@ -68,7 +69,7 @@ object BrokerManager {
       case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Broker - [${cmd.brokerData.brokerId}] already exists"))
       case None =>
         Effect
-          .persist(BrokerCreated(cmd.brokerData))
+          .persist(BrokerCreated(cmd.brokerData, cmd.airlines))
           .thenReply(cmd.replyTo)(_ => BrokerCreationConfirmed(cmd.brokerData.brokerId))
     }
   }
