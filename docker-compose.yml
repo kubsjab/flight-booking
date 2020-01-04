@@ -2,15 +2,16 @@ version: '3.2'
 services:
   db:
     image: postgres:12.1-alpine
+    container_name: flight-booking-db
     ports:
       - 5432:5432
     volumes:
       - pg_data:/var/lib/postgresql/data
       - "./initdb:/docker-entrypoint-initdb.d"
     environment:
-      POSTGRES_DB: postgres
       POSTGRES_USER: docker
       POSTGRES_PASSWORD: docker
+      POSTGRES_MULTIPLE_DATABASES: standard_db,overbooking_db
 
 volumes:
   pg_data:
