@@ -1,7 +1,7 @@
 package pl.edu.pw.ii.sag.flightbooking.core.client
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
@@ -56,6 +56,7 @@ object ClientManager {
         val client = context.spawn(Client(clientData, brokers), clientData.clientId)
         context.watchWith(client, TerminateClient(clientData.clientId, client))
         context.log.info(s"Client: [${clientData.clientId}] has been created")
+        client ! Client.Start()
         State(state.clientActors.updated(clientData.clientId, client))
       case ClientTerminated(clientId, client) =>
         context.log.info(s"Client: [${clientId}] has been terminated")

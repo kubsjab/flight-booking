@@ -34,8 +34,8 @@ object FlightBooking {
 
   private def handleBookingOperationResult(response: Flight.BookingOperationResult, replyTo: ActorRef[Broker.BookingOperationResult]): Behavior[Command] = {
     response match {
-      case Flight.BookingAccepted(bookingId) => replyTo ! Broker.BookingAccepted(bookingId)
-      case Flight.BookingRejected(reason) => replyTo ! Broker.BookingRejected(reason)
+      case Flight.BookingAccepted(bookingId) => replyTo ! Broker.BookingAccepted(bookingId,)
+      case Flight.BookingRejected(reason) => replyTo ! Broker.BookingRejected(reason,)
     }
     Behaviors.stopped
   }
