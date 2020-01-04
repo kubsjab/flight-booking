@@ -15,14 +15,18 @@ What things you need to install the software and how to install them
 ```
 - JDK 11
 - SBT 1.1.6
+- Docker 17.04
+- Docker Compose 3.2
 ```
 
 ### Installing
 
-In order to run from source code run following command:
+In order to run simulation run following commands:
 
 ```
-$ sbt "run {SIMULATION_TYPE}"
+$ docker-compose up -d
+$ chmod +x run_simulation.sh
+$ ./run_simulation.sh # temporarily it contains SIMULATION_TYPE variable which should be changed
 ```
 
 where `SIMULATION_TYPE` indicates which simulation should be run. Example usage with _standard_ simulation:
