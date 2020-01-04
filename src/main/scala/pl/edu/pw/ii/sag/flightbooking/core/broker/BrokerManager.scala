@@ -9,6 +9,9 @@ import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 
 object BrokerManager {
+
+  final val TAG = "broker-manager"
+
   // command
   sealed trait Command extends CborSerializable
   final case class CreateBroker(brokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]], replyTo: ActorRef[OperationResult]) extends Command
@@ -34,10 +37,12 @@ object BrokerManager {
   def apply(): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId("broker-manager"),
+        persistenceId = PersistenceId.ofUniqueId(TAG),
         emptyState = State(Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_ => Set(TAG))
+
     }
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {

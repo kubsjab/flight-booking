@@ -30,6 +30,8 @@ case class FlightInfo(flightId: String,
 
 object Flight {
 
+  final val TAG = "flight"
+
   // command
   sealed trait Command extends CborSerializable
   final case class GetFlightDetails(replyTo: ActorRef[FlightDetailsMessage]) extends Command
@@ -74,7 +76,7 @@ object Flight {
 
   }
 
-  def buildId(customId: String): String = s"flight-$customId"
+  def buildId(customId: String): String = s"$TAG-$customId"
 
   case class OpenedFlight(flightInfo: FlightInfo, seatReservations: Map[String, Option[Booking]]) extends State {
     override def applyEvent(event: Event): State = {
@@ -99,6 +101,8 @@ object Flight {
         emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
         commandHandler = commandHandler(context, flightBookingStrategyType),
         eventHandler = eventHandler)
+        .withTagger(_ => Set(TAG))
+
     }
 
   private val eventHandler: (State, Event) => State = { (state, event) =>

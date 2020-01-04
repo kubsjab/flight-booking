@@ -8,6 +8,7 @@ import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 
 object AirlineManager {
+  final val TAG = "airline-manager"
 
   // command
   sealed trait Command extends CborSerializable
@@ -34,10 +35,12 @@ object AirlineManager {
   def apply(): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId("airline-manager"),
+        persistenceId = PersistenceId.ofUniqueId(TAG),
         emptyState = State(Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_ => Set(TAG))
+
     }
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {

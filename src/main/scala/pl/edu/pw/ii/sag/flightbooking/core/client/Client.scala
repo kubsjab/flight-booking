@@ -9,6 +9,9 @@ import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 case class ClientData(clientId: String, name: String, brokerIds: Set[String])
 object Client {
+
+  final val TAG = "client"
+
   // command
   sealed trait Command extends CborSerializable
   private final case class RemoveBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
@@ -28,7 +31,7 @@ object Client {
   //state
   final case class State(brokerActors: Map[String, ActorRef[Broker.Command]]) extends CborSerializable
 
-  def buildId(customId: String): String = s"client-$customId"
+  def buildId(customId: String): String = s"$TAG-$customId"
 
   def apply(clientData: ClientData, brokers:Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
@@ -37,6 +40,8 @@ object Client {
         emptyState = State(brokers),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_=> Set(TAG))
+
     }
   }
 
