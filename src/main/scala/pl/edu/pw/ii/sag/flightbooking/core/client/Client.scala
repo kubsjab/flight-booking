@@ -165,11 +165,12 @@ object Client {
   }
 
   private def getAvaliableSeat(seats: Map[String, Boolean]) = {
-    seats
-      .toList
-      .filter(_._2 == false)
-      .head
-      ._1
+    val availableSeats =
+      seats
+        .toList
+        .filter(_._2 == false)
+
+    availableSeats.apply(Random.nextInt(availableSeats.length - 1))._1
   }
 
   private def brokerTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveBroker): Effect[Event, State] = {
