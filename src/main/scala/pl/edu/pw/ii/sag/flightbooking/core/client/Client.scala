@@ -11,9 +11,11 @@ case class ClientData(clientId: String, name: String, brokerIds: Set[String])
 object Client {
   // command
   sealed trait Command extends CborSerializable
+  private final case class RemoveBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
+  final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -28,11 +30,11 @@ object Client {
 
   def buildId(customId: String): String = s"client-$customId"
 
-  def apply(clientData: ClientData): Behavior[Command] = {
+  def apply(clientData: ClientData, brokers:Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
-        emptyState = State(Map.empty),
+        emptyState = State(brokers),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
     }
@@ -41,14 +43,22 @@ object Client {
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
       cmd match {
+        case c: RemoveBroker => brokerTerminated(context, state, c)
         case _ => Effect.none
       }
   }
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
+      case BrokerTerminated(brokerId, broker) =>
+        context.log.info(s"Broker: [${brokerId}] has been terminated. Removing from Client.")
+        context.unwatch(broker)
+        State(state.brokerActors - brokerId)
       case _ => state
     }
   }
 
+  private def brokerTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveBroker): Effect[Event, State] ={
+    Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
+  }
 }
