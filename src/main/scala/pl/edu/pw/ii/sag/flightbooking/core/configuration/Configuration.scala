@@ -19,4 +19,8 @@ object Configuration {
   val maxAirlinesInBrokerCount: Int = airlinesCount
   val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
   val maxBrokersInClientCount: Int = brokersCount
+
+  val flightRoutesCount: Int = configuration.getInt("akka.configuration.simulation.flight.generation.routes")
+  val cityFileName: String = configuration.getString("akka.configuration.simulation.flight.generation.citySourceFile")
+  val planeFileName: String = configuration.getString("akka.configuration.simulation.flight.generation.planeSourceFile")
 }

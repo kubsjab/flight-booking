@@ -1,11 +1,27 @@
 package pl.edu.pw.ii.sag.flightbooking.simulation.generation.data
 
+import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.{Plane, Seat}
+
+import scala.io.Source
+import scala.util.Random
 
 object PlaneGenerator {
 
-  def getRandomPlane(): Plane = { // TODO Provide simple dictionary
-    Plane("Boeing 787", (1 to 100).map(x => Seat(x.toString)))
+  val planeDataSet: Seq[Plane] = readData()
+
+
+  def getRandomPlane(): Plane = {
+    planeDataSet(Random.nextInt(planeDataSet.length - 1))
+  }
+
+  private def readData(): Seq[Plane] = {
+    Source.fromResource(Configuration.planeFileName).getLines()
+      .map(line => {
+        val Array(name, seats) = line.split(",")
+        Plane(name, (1 to seats.toInt).map(x => Seat(x.toString)))
+      })
+      .toSeq
   }
 
 }
