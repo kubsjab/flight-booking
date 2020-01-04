@@ -18,6 +18,7 @@ object Client {
 
   // command
   sealed trait Command extends CborSerializable
+
   private final case class RemoveBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
 
   final case class Start() extends Command
@@ -28,6 +29,7 @@ object Client {
 
   // event
   sealed trait Event extends CborSerializable
+
   final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
 
   private final case class TickedReservationStarted(bookingData: BookingData) extends Event
@@ -55,23 +57,6 @@ object Client {
                           bookingRequests: Map[Int, BookingData],
                           nextRequestId: Int
                         ) extends CborSerializable {
-
-    def applyEvent(event: Event): State = {
-      event match {
-        case TickedReservationStarted(bookingData) =>
-          copy(brokerActors, clientData, bookingRequests.updated(bookingData.id, bookingData), nextRequestId + 1)
-        case BookingAccepted(requestId, bookingId) =>
-          val updatedBookingRequests = bookingRequests.get(requestId) match {
-            case Some(bookingData) => bookingRequests + (requestId -> bookingData.accepted(bookingId))
-          }
-          copy(brokerActors, clientData, updatedBookingRequests, nextRequestId)
-        case BookingRejected(requestId, reason) =>
-          val updatedBookingRequests = bookingRequests.get(requestId) match {
-            case Some(bookingData) => bookingRequests + (requestId -> bookingData.rejected(reason))
-          }
-          copy(brokerActors, clientData, updatedBookingRequests, nextRequestId)
-      }
-    }
   }
 
 
@@ -81,7 +66,7 @@ object Client {
     State(brokerActors, clientData, Map.empty, 0)
   }
 
-  def apply(clientData: ClientData, brokers:Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
+  def apply(clientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
@@ -106,8 +91,22 @@ object Client {
       case BrokerTerminated(brokerId, broker) =>
         context.log.info(s"Broker: [${brokerId}] has been terminated. Removing from Client.")
         context.unwatch(broker)
-        State(state.brokerActors - brokerId)
-      case _ => state.applyEvent(event)
+        state.copy(brokerActors = state.brokerActors - brokerId)
+
+      case TickedReservationStarted(bookingData) =>
+        state.copy(bookingRequests = state.bookingRequests.updated(bookingData.id, bookingData), nextRequestId = state.nextRequestId + 1)
+
+      case BookingAccepted(requestId, bookingId) =>
+        val updatedBookingRequests = state.bookingRequests.get(requestId) match {
+          case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.accepted(bookingId))
+        }
+        state.copy(bookingRequests = updatedBookingRequests)
+
+      case BookingRejected(requestId, reason) =>
+        val updatedBookingRequests = state.bookingRequests.get(requestId) match {
+          case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.rejected(reason))
+        }
+        state.copy(bookingRequests = updatedBookingRequests)
     }
   }
 
@@ -156,7 +155,7 @@ object Client {
       ._1
   }
 
-  private def brokerTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveBroker): Effect[Event, State] ={
+  private def brokerTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveBroker): Effect[Event, State] = {
     Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
   }
 }
