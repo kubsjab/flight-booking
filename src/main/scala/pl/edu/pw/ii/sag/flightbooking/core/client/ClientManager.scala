@@ -4,20 +4,21 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 
 object ClientManager {
   // command
   sealed trait Command extends CborSerializable
-  final case class CreateClient(clientData: ClientData, replyTo: ActorRef[OperationResult]) extends Command
+  final case class CreateClient(clientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]], replyTo: ActorRef[OperationResult]) extends Command
   final case class GetClient(clientId: String, replyTo: ActorRef[ClientCollection]) extends Command
   final case class GetClients(replyTo: ActorRef[ClientCollection]) extends Command
   private final case class TerminateClient(clientId: String, client: ActorRef[Client.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-  final case class ClientCreated(ClientData: ClientData) extends Event
+  final case class ClientCreated(ClientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]]) extends Event
   final case class ClientTerminated(clientId: String, client: ActorRef[Client.Command]) extends Event
 
   // reply
@@ -51,8 +52,8 @@ object ClientManager {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case ClientCreated(clientData) =>
-        val client = context.spawn(Client(clientData), clientData.clientId)
+      case ClientCreated(clientData, brokers) =>
+        val client = context.spawn(Client(clientData, brokers), clientData.clientId)
         context.watchWith(client, TerminateClient(clientData.clientId, client))
         context.log.info(s"Client: [${clientData.clientId}] has been created")
         State(state.clientActors.updated(clientData.clientId, client))
@@ -68,7 +69,7 @@ object ClientManager {
       case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Client - [${cmd.clientData.clientId}] already exists"))
       case None =>
         Effect
-          .persist(ClientCreated(cmd.clientData))
+          .persist(ClientCreated(cmd.clientData, cmd.brokers))
           .thenReply(cmd.replyTo)(_ => ClientCreationConfirmed(cmd.clientData.clientId))
     }
   }

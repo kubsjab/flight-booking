@@ -46,7 +46,7 @@ object StandardSimulationGuardian extends Simulation {
     val airlineGenerator = context.spawn(AirlineGenerator(airlineManager), "airline-generator")
     val flightGenerator = context.spawn(FlightGenerator(airlineManager), "flight-generator")
     val brokerGenerator = context.spawn(BrokerGenerator(brokerManager, airlineManager), "broker-generator")
-    val clientGenerator = context.spawn(ClientGenerator(clientManager), "client-generator")
+    val clientGenerator = context.spawn(ClientGenerator(clientManager, brokerManager), "client-generator")
 
 
     Behaviors.receiveMessage[Simulation.Message] {
