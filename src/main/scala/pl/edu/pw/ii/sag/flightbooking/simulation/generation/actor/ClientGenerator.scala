@@ -107,8 +107,6 @@ object ClientGenerator {
               .take(minBrokersInClientCount + Random.nextInt(maxBrokersInClientCount-minBrokersInClientCount))
             val brokerIdsForClient: Set[String] = indices.map(brokerIds.toList).toSet
             val brokerRefsForClient = brokerRefs.filter(entry => brokerIdsForClient.contains(entry._1))
-            context.log.info(brokerIdsForClient.toString())
-            context.log.info(brokerRefsForClient.toString())
             clientManager ! ClientManager.CreateClient(ClientData(Client.buildId(i.toString), s"Client-$i", brokerIdsForClient), brokerRefsForClient, replyTo)
           })
         },
