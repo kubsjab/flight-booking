@@ -137,13 +137,14 @@ object Client {
 
     Effect.persist(TickedReservationStarted(data))
       .thenRun(state =>
-        broker ! Broker.BookFlight(
-          data.flightInfo.airlineId,
+        broker ! Broker.BookFlight(data.flightInfo.airlineId,
           data.flightInfo.flightId,
           data.seat,
-          Customer(state.clientData.name, state.clientData.name), //todo surname
+          Customer(state.clientData.name,
+            state.clientData.name),
           ZonedDateTime.now(),
-          brokerBookingOperationResponseWrapper
+          brokerBookingOperationResponseWrapper,
+          data.id
         ))
   }
 

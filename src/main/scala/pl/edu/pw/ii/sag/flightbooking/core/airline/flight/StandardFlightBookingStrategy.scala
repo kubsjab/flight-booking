@@ -13,16 +13,16 @@ class StandardFlightBookingStrategy extends FlightBookingStrategy {
 
   override protected def bookFlight(flightState: OpenedFlight, cmd: Book): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.flightId)) {
-      return Effect.reply(cmd.replyTo)(BookingRejected("Invalid flightId"))
+      return Effect.reply(cmd.replyTo)(BookingRejected("Invalid flightId", cmd.requestId))
     }
     if (flightState.isBooked(cmd.seatId)) {
-      Effect.reply(cmd.replyTo)(BookingRejected(s"Seat with id ${cmd.seatId} is already booked"))
+      Effect.reply(cmd.replyTo)(BookingRejected(s"Seat with id ${cmd.seatId} is already booked", cmd.requestId))
     }
     else {
       val booking = Booking.createBooking(cmd.customer)
       Effect
         .persist(Booked(cmd.seatId, booking))
-        .thenReply(cmd.replyTo)(_ => BookingAccepted(booking.bookingId))
+        .thenReply(cmd.replyTo)(_ => BookingAccepted(booking.bookingId, cmd.requestId))
     }
   }
 

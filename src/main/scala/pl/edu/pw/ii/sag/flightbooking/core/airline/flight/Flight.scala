@@ -33,25 +33,34 @@ object Flight {
   // command
   sealed trait Command extends CborSerializable
   final case class GetFlightDetails(replyTo: ActorRef[FlightDetailsMessage]) extends Command
-  final case class Book(flightId: String, seatId: String, customer: Customer, replyTo: ActorRef[BookingOperationResult]) extends Command
+
+  final case class Book(flightId: String, seatId: String, customer: Customer, replyTo: ActorRef[BookingOperationResult], requestId: Int) extends Command
+
   final case class CancelBooking(flightId: String, bookingId: String, replyTo: ActorRef[OperationResult]) extends Command
   final case class CloseFlight(flightId: String, replyTo: ActorRef[OperationResult]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
   final case class Booked(seatId: String, booking: Booking) extends Event
+
   final case class BookingCancelled(seatId: String) extends Event
+
   final case class FlightClosed() extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
+
   sealed trait OperationResult extends CommandReply
+
   final case class Accepted() extends OperationResult
+
   final case class Rejected(reason: String) extends OperationResult
 
   sealed trait BookingOperationResult extends CommandReply
-  final case class BookingAccepted(bookingId: String) extends BookingOperationResult
-  final case class BookingRejected(reason: String) extends BookingOperationResult
+
+  final case class BookingAccepted(bookingId: String, requestId: Int) extends BookingOperationResult
+
+  final case class BookingRejected(reason: String, requestId: Int) extends BookingOperationResult
 
   final case class FlightDetailsMessage(flightDetails: FlightDetails) extends CommandReply
 
