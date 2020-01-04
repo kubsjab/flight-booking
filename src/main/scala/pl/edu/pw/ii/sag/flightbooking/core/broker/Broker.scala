@@ -44,10 +44,10 @@ object Broker {
 
   final case class BookingRejected(reason: String, requestId: Int) extends BookingOperationResult
 
-  final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]]) extends CommandReply
+  final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]], brokerId: String) extends CommandReply
 
   //state
-  final case class State(airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
+  final case class State(brokerId: String, airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
 
   def buildId(customId: String): String = s"broker-$customId"
 
@@ -56,7 +56,7 @@ object Broker {
       airlines.foreach(airlineInfo => context.watchWith(airlineInfo._2, RemoveAirline(airlineInfo._1, airlineInfo._2)))
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(brokerData.brokerId),
-        emptyState = State(airlines),
+        emptyState = State(brokerData.brokerId, airlines),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
     }
@@ -80,7 +80,7 @@ object Broker {
       case AirlineTerminated(airlineId, airline) =>
         context.log.info(s"Airline: [${airlineId}] has been terminated. Removing from Broker.")
         context.unwatch(airline)
-        State(state.airlineActors - airlineId)
+        state.copy(airlineActors = state.airlineActors - airlineId)
       case _ => state
     }
   }
@@ -111,19 +111,19 @@ object Broker {
 
   private def getAirlineFlights(context: ActorContext[Command], state: State, cmd: GetAirlineFlights): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlights(airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlights(airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 
   private def getAirlineFlightsBySource(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySource): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySource(cmd.source, airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySource(cmd.source, airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 
   private def getAirlineFlightsBySourceAndDestination(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySourceAndDestination): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySourceAndDestination(cmd.source, cmd.destination, airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySourceAndDestination(cmd.source, cmd.destination, airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 

@@ -12,6 +12,8 @@ import pl.edu.pw.ii.sag.flightbooking.core.client.booking.BookingData
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
+import scala.util.Random
+
 case class ClientData(clientId: String, name: String, brokerIds: Set[String])
 
 object Client {
@@ -26,6 +28,8 @@ object Client {
   final case class StartTicketReservation() extends Command
 
   private final case class WrappedBookingOperationResult(response: Broker.BookingOperationResult) extends Command
+
+  private final case class WrappedAggregatedBrokerFlights(response: BrokerFlightsQuery.AggregatedBrokerFlights) extends Command
 
   // event
   sealed trait Event extends CborSerializable
@@ -76,12 +80,22 @@ object Client {
     }
   }
 
+  def handleGetFlightsQueryResponse(context: ActorContext[Command], state: State, response: BrokerFlightsQuery.AggregatedBrokerFlights): Effect[Event, State] = {
+
+    val availableFlights =
+      response.brokerFlights.toList
+        .flatMap(c => c._2.map(x => (c._1, x)))
+    val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length - 1))
+    bookTicket(context, state, randomFlight._1, randomFlight._2)
+  }
+
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
       cmd match {
-        case WrappedBookingOperationResult(response) => handleBookingResponse(context, response): Effect[Event, State]
         case Start() => startClient(context, state)
+        case WrappedBookingOperationResult(response) => handleBookingResponse(context, response): Effect[Event, State]
         case c: RemoveBroker => brokerTerminated(context, state, c)
+        case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
         case _ => Effect.none
       }
   }
@@ -122,17 +136,20 @@ object Client {
     }
   }
 
+
   def startClient(context: ActorContext[Command], state: State): Effect[Event, State] = {
-    val broker = state.brokerActors.head._2
-    var details: FlightDetails = null
-    bookTicket(context, state, broker, details)
+    val queryResponseWrapper: ActorRef[BrokerFlightsQuery.AggregatedBrokerFlights] = context.messageAdapter(rsp => WrappedAggregatedBrokerFlights(rsp))
+    context.spawnAnonymous(BrokerFlightsQuery.getFlights(state.brokerActors.values.toList, queryResponseWrapper))
+    Effect.none
   }
 
-  private def bookTicket(context: ActorContext[Command], state: State, broker: ActorRef[Broker.Command], details: FlightDetails): Effect[Event, State] = {
+  private def bookTicket(context: ActorContext[Command], state: State, brokerId: String, details: FlightDetails): Effect[Event, State] = {
 
     val brokerBookingOperationResponseWrapper: ActorRef[Broker.BookingOperationResult] = context.messageAdapter(rsp => WrappedBookingOperationResult(rsp))
-
     val data = BookingData(state.nextRequestId, "", details.flightInfo, getAvaliableSeat(details.seatReservations))
+    val broker = state.brokerActors(brokerId)
+
+    context.log.debug(s"Starting booking reservation from $brokerId for $data")
 
     Effect.persist(TickedReservationStarted(data))
       .thenRun(state =>
