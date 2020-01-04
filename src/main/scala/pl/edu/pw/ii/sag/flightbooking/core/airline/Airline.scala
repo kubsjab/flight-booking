@@ -19,6 +19,7 @@ case class FlightActorWrapper(flightInfo: FlightInfo, flightActor: ActorRef[Flig
 
 object Airline {
 
+  final val TAG = "airline"
   // command
   sealed trait Command extends CborSerializable
   final case class CreateFlight(flightInfo: FlightInfo, flightBookingStrategy: FlightBookingStrategyType, replyTo: ActorRef[OperationResult]) extends Command
@@ -44,7 +45,7 @@ object Airline {
   //state
   final case class State(airlineId: String, flightActors: Map[String, FlightActorWrapper]) extends CborSerializable
 
-  def buildId(customId: String): String = s"airline-$customId"
+  def buildId(customId: String): String = s"$TAG-$customId"
 
   def apply(airlineData: AirlineData): Behavior[Command] = {
     Behaviors.setup { context =>
@@ -53,6 +54,7 @@ object Airline {
         emptyState = State(airlineData.airlineId, Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_=> Set(TAG))
     }
   }
 
