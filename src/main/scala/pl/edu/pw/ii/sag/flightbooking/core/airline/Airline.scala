@@ -19,17 +19,17 @@ case class FlightActorWrapper(flightInfo: FlightInfo, flightActor: ActorRef[Flig
 
 object Airline {
 
+  final val TAG = "airline"
   // command
   sealed trait Command extends CborSerializable
   final case class CreateFlight(flightInfo: FlightInfo, flightBookingStrategy: FlightBookingStrategyType, replyTo: ActorRef[OperationResult]) extends Command
   final case class GetFlights(replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class GetFlightsBySource(source: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class GetFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
-
   final case class BookFlight(flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[Flight.BookingOperationResult], requestId: Int) extends Command
-
-  final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.OperationResult]) extends Command
+  final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.CancelBookingOperationResult]) extends Command
   private final case class TerminateFlight(flightId: String, flight: ActorRef[Flight.Command]) extends Command
+
   // event
   sealed trait Event extends CborSerializable
   final case class FlightCreated(flightInfo: FlightInfo, flightBookingStrategy: FlightBookingStrategyType) extends Event
@@ -45,7 +45,7 @@ object Airline {
   //state
   final case class State(airlineId: String, flightActors: Map[String, FlightActorWrapper]) extends CborSerializable
 
-  def buildId(customId: String): String = s"airline-$customId"
+  def buildId(customId: String): String = s"$TAG-$customId"
 
   def apply(airlineData: AirlineData): Behavior[Command] = {
     Behaviors.setup { context =>
@@ -54,6 +54,7 @@ object Airline {
         emptyState = State(airlineData.airlineId, Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_=> Set(TAG))
     }
   }
 
@@ -156,7 +157,7 @@ object Airline {
   private def cancelFlightBooking(state: State, cmd: CancelFlightBooking): Effect[Event, State] = {
     state.flightActors.get(cmd.flightId) match {
       case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.CancelBooking(cmd.flightId, cmd.bookingId, cmd.replyTo)
-      case None => cmd.replyTo ! Flight.Rejected(s"Unable to find flight with id: [${cmd.flightId}]")
+      case None => cmd.replyTo ! Flight.CancelBookingRejected(s"Unable to find flight with id: [${cmd.flightId}]")
     }
     Effect.none
   }

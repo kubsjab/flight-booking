@@ -18,6 +18,9 @@ case class ClientData(clientId: String, name: String, brokerIds: Set[String])
 
 object Client {
 
+
+  final val TAG = "client"
+
   // command
   sealed trait Command extends CborSerializable
 
@@ -64,7 +67,7 @@ object Client {
   }
 
 
-  def buildId(customId: String): String = s"client-$customId"
+  def buildId(customId: String): String = s"$TAG-$customId"
 
   def getInitialState(brokerActors: Map[String, ActorRef[Broker.Command]], clientData: ClientData): State = {
     State(brokerActors, clientData, Map.empty, 0)
@@ -77,6 +80,8 @@ object Client {
         emptyState = getInitialState(brokers, clientData),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
+        .withTagger(_=> Set(TAG))
+
     }
   }
 

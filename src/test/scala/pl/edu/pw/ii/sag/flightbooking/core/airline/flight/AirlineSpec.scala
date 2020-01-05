@@ -17,7 +17,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
       akka.persistence.snapshot-store.local.dir = "target/snapshot-${UUID.randomUUID().toString}"
     """) with WordSpecLike {
 
-  private def airlineData(): AirlineData = AirlineData("airline-1", "Airline name")
+  private def airlineData(): AirlineData = AirlineData(s"airline-${UUID.randomUUID().toString}", "Airline name")
 
   private def randomFlightInfo(): FlightInfo = FlightInfo(
     UUID.randomUUID().toString,
