@@ -33,4 +33,7 @@ object Configuration {
   val flightRoutesCount: Int = configuration.getInt("configuration.simulation.flight.generation.routes")
   val cityFileName: String = configuration.getString("configuration.simulation.flight.generation.citySourceFile")
   val planeFileName: String = configuration.getString("configuration.simulation.flight.generation.planeSourceFile")
+
+  val minFlightResponseDelay: Int = 1
+  val maxFlightResponseDelay: Int = 5
 }
