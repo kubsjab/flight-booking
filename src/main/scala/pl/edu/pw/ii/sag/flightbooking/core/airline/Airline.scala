@@ -27,7 +27,7 @@ object Airline {
   final case class GetFlightsBySource(source: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class GetFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class BookFlight(flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[Flight.BookingOperationResult]) extends Command
-  final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.OperationResult]) extends Command
+  final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.CancelBookingOperationResult]) extends Command
   private final case class TerminateFlight(flightId: String, flight: ActorRef[Flight.Command]) extends Command
 
   // event
@@ -157,7 +157,7 @@ object Airline {
   private def cancelFlightBooking(state: State, cmd: CancelFlightBooking): Effect[Event, State] = {
     state.flightActors.get(cmd.flightId) match {
       case Some(flightActorWrapper) => flightActorWrapper.flightActor ! Flight.CancelBooking(cmd.flightId, cmd.bookingId, cmd.replyTo)
-      case None => cmd.replyTo ! Flight.Rejected(s"Unable to find flight with id: [${cmd.flightId}]")
+      case None => cmd.replyTo ! Flight.CancelBookingRejected(s"Unable to find flight with id: [${cmd.flightId}]")
     }
     Effect.none
   }

@@ -20,7 +20,7 @@ object Broker {
   // command
   sealed trait Command extends CborSerializable
   final case class BookFlight(airlineId: String, flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[BookingOperationResult]) extends Command
-  final case class CancelFlightBooking(airlineId: String, flightId: String, bookingId: String, replyTo: ActorRef[OperationResult]) extends Command
+  final case class CancelFlightBooking(airlineId: String, flightId: String, bookingId: String, replyTo: ActorRef[CancelBookingOperationResult]) extends Command
   final case class GetAirlineFlights(replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySource(source: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
@@ -30,19 +30,28 @@ object Broker {
   sealed trait Event extends CborSerializable
   final case class AirlineTerminated(airlineId: String, airline: ActorRef[Airline.Command]) extends Event
 
+  //state
+  final case class State(airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
+
   // reply
   sealed trait CommandReply extends CborSerializable
-  sealed trait OperationResult extends CommandReply
-  final case class Accepted() extends OperationResult
-  final case class Rejected(reason: String) extends OperationResult
 
   sealed trait BookingOperationResult extends CommandReply
   final case class BookingAccepted(bookingId: String) extends BookingOperationResult
-  final case class BookingRejected(reason: String) extends BookingOperationResult
+  sealed trait BookingFailed extends BookingOperationResult
+  final case class BookingRejected(reason: String) extends BookingFailed
+
+  sealed trait CancelBookingOperationResult extends CommandReply
+  final case class CancelBookingAccepted() extends CancelBookingOperationResult
+  sealed trait CancelBookingFailed extends CancelBookingOperationResult
+  final case class CancelBookingRejected(reason: String) extends CancelBookingFailed
+
+  sealed trait SystemFailure extends CommandReply with BookingOperationResult with CancelBookingOperationResult
+  final case class Timeout() extends SystemFailure
+  final case class GeneralSystemFailure(reason: String) extends SystemFailure
+
   final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]]) extends CommandReply
 
-  //state
-  final case class State(airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
 
   def buildId(customId: String): String = s"$TAG-$customId"
 
@@ -67,7 +76,7 @@ object Broker {
         case c: GetAirlineFlights => getAirlineFlights(context, state, c)
         case c: GetAirlineFlightsBySource => getAirlineFlightsBySource(context, state, c)
         case c: GetAirlineFlightsBySourceAndDestination => getAirlineFlightsBySourceAndDestination(context, state, c)
-        case c: RemoveAirline => airlineTerminated(context, state, c)
+        case c: RemoveAirline => airlineTerminated(c)
         case _ => Effect.none
       }
   }
@@ -82,7 +91,7 @@ object Broker {
     }
   }
 
-  private def airlineTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveAirline): Effect[Event, State] ={
+  private def airlineTerminated(cmd: RemoveAirline): Effect[Event, State] ={
     Effect.persist(AirlineTerminated(cmd.airlineId, cmd.airline))
   }
 
@@ -91,7 +100,7 @@ object Broker {
       case Some(airline) =>
         context.spawnAnonymous(FlightBooking.bookFlight(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo))
       case None =>
-        cmd.replyTo ! BookingRejected(s"Unable to find airline with id: [${cmd.airlineId}]")
+        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]")
     }
     Effect.none
   }
@@ -101,7 +110,7 @@ object Broker {
       case Some(airline) =>
         context.spawnAnonymous(FlightBooking.cancelFlightBooking(airline, cmd.flightId, cmd.bookingId, cmd.replyTo))
       case None =>
-        cmd.replyTo ! Rejected(s"Unable to find airline with id: [${cmd.airlineId}]")
+        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]")
     }
     Effect.none
   }

@@ -4,6 +4,16 @@ import com.typesafe.config.ConfigFactory
 
 object Configuration {
   val configuration = ConfigFactory.load("application.conf")
+
+  object Core {
+
+    object Broker {
+      val bookingTimeout = configuration.getInt("configuration.core.broker.booking-timeout")
+      val cancelBookingTimeout = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
+    }
+
+  }
+
   val airlinesCount = configuration.getInt("configuration.simulation.airline.count")
   val brokersCount = configuration.getInt("configuration.simulation.broker.count")
   val clientsCount = configuration.getInt("configuration.simulation.client.count")

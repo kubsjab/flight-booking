@@ -28,27 +28,27 @@ class StandardFlightBookingStrategy extends FlightBookingStrategy {
 
   override protected def cancelBooking(flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.flightId)) {
-      return Effect.reply(cmd.replyTo)(Rejected("Invalid flightId"))
+      return Effect.reply(cmd.replyTo)(CancelBookingRejected("Invalid flightId"))
     }
     val bookedSeatId = flightState.getSeatByBookingId(cmd.bookingId)
     if (bookedSeatId.isEmpty) {
-      Effect.reply(cmd.replyTo)(Rejected(s"Booking with id ${cmd.bookingId} does not exist"))
+      Effect.reply(cmd.replyTo)(CancelBookingRejected(s"Booking with id ${cmd.bookingId} does not exist"))
     }
     else {
       Effect
         .persist(BookingCancelled(bookedSeatId.get))
-        .thenReply(cmd.replyTo)(_ => Accepted())
+        .thenReply(cmd.replyTo)(_ => CancelBookingAccepted())
     }
   }
 
   override protected def closeFlight(flightState: OpenedFlight, cmd: CloseFlight): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.flightId)) {
-      Effect.reply(cmd.replyTo)(Rejected("Invalid flightId"))
+      Effect.reply(cmd.replyTo)(CloseFlightRejected("Invalid flightId"))
     }
     else {
       Effect
         .persist(FlightClosed())
-        .thenReply(cmd.replyTo)(_ => Accepted())
+        .thenReply(cmd.replyTo)(_ => CloseFlightAccepted())
     }
   }
 
