@@ -8,32 +8,90 @@ object Configuration {
   object Core {
 
     object Broker {
-      val bookingTimeout = configuration.getInt("configuration.core.broker.booking-timeout")
-      val cancelBookingTimeout = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
+      val bookingTimeout: Int = configuration.getInt("configuration.core.broker.booking-timeout")
+      val cancelBookingTimeout: Int = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
     }
 
   }
 
-  val airlinesCount = configuration.getInt("configuration.simulation.airline.count")
-  val brokersCount = configuration.getInt("configuration.simulation.broker.count")
-  val clientsCount = configuration.getInt("configuration.simulation.client.count")
+  object Simulation {
 
-  val initialMinFlightCount = configuration.getInt("configuration.simulation.flight.initial.minCount")
-  val initialMaxFlightCount = configuration.getInt("configuration.simulation.flight.initial.maxCount")
-  val flightSchedulerEnabled = configuration.getBoolean("configuration.simulation.flight.scheduler.enabled")
-  val flightSchedulerDelay = configuration.getInt("configuration.simulation.flight.scheduler.delay")
-  val schedulerMinFlightCount = configuration.getInt("configuration.simulation.flight.scheduler.minCount")
-  val schedulerMaxFlightCount = configuration.getInt("configuration.simulation.flight.scheduler.maxCount")
+    object DataGenerator {
+      val flightRoutesCount: Int = configuration.getInt("configuration.simulation.generation.routes")
+      val cityFileName: String = configuration.getString("configuration.simulation.generation.citySourceFile")
+      val planeFileName: String = configuration.getString("configuration.simulation.generation.planeSourceFile")
+    }
 
-  val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
-  val maxAirlinesInBrokerCount: Int = airlinesCount
-  val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
-  val maxBrokersInClientCount: Int = brokersCount
+    object Standard {
+      val airlinesCount: Int = configuration.getInt("configuration.simulation.standard.airline.count")
+      val brokersCount: Int = configuration.getInt("configuration.simulation.standard.broker.count")
+      val clientsCount: Int = configuration.getInt("configuration.simulation.standard.client.count")
 
-  val flightRoutesCount: Int = configuration.getInt("configuration.simulation.flight.generation.routes")
-  val cityFileName: String = configuration.getString("configuration.simulation.flight.generation.citySourceFile")
-  val planeFileName: String = configuration.getString("configuration.simulation.flight.generation.planeSourceFile")
+      val flight: Flight = Flight(
+        initialMinCount = configuration.getInt("configuration.simulation.standard.flight.initial.minCount"),
+        initialMaxCount = configuration.getInt("configuration.simulation.standard.flight.initial.maxCount"),
+        schedulerEnabled = configuration.getBoolean("configuration.simulation.standard.flight.scheduler.enabled"),
+        schedulerDelay = configuration.getInt("configuration.simulation.standard.flight.scheduler.delay"),
+        schedulerMinCount = configuration.getInt("configuration.simulation.standard.flight.scheduler.minCount"),
+        schedulerMaxCount = configuration.getInt("configuration.simulation.standard.flight.scheduler.maxCount")
+      )
 
-  val minFlightResponseDelay: Int = 1
-  val maxFlightResponseDelay: Int = 5
+
+      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
+      val maxAirlinesInBrokerCount: Int = airlinesCount
+      val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
+      val maxBrokersInClientCount: Int = brokersCount
+
+    }
+
+    object Delayed {
+      val airlinesCount: Int = configuration.getInt("configuration.simulation.delayed.airline.count")
+      val brokersCount: Int = configuration.getInt("configuration.simulation.delayed.broker.count")
+      val clientsCount: Int = configuration.getInt("configuration.simulation.delayed.client.count")
+
+      val standardFlight: Flight = Flight(
+        initialMinCount = configuration.getInt("configuration.simulation.delayed.flight.standard.initial.minCount"),
+        initialMaxCount = configuration.getInt("configuration.simulation.delayed.flight.standard.initial.maxCount"),
+        schedulerEnabled = configuration.getBoolean("configuration.simulation.delayed.flight.standard.scheduler.enabled"),
+        schedulerDelay = configuration.getInt("configuration.simulation.delayed.flight.standard.scheduler.delay"),
+        schedulerMinCount = configuration.getInt("configuration.simulation.delayed.flight.standard.scheduler.minCount"),
+        schedulerMaxCount = configuration.getInt("configuration.simulation.delayed.flight.standard.scheduler.maxCount")
+      )
+
+      val delayedFlight: Flight = Flight(
+        initialMinCount = configuration.getInt("configuration.simulation.delayed.flight.delayed.initial.minCount"),
+        initialMaxCount = configuration.getInt("configuration.simulation.delayed.flight.delayed.initial.maxCount"),
+        schedulerEnabled = configuration.getBoolean("configuration.simulation.delayed.flight.delayed.scheduler.enabled"),
+        schedulerDelay = configuration.getInt("configuration.simulation.delayed.flight.delayed.scheduler.delay"),
+        schedulerMinCount = configuration.getInt("configuration.simulation.delayed.flight.delayed.scheduler.minCount"),
+        schedulerMaxCount = configuration.getInt("configuration.simulation.delayed.flight.delayed.scheduler.maxCount"),
+        minDelay = configuration.getInt("configuration.simulation.delayed.flight.delayed.minDelay"),
+        maxDelay = configuration.getInt("configuration.simulation.delayed.flight.delayed.maxDelay")
+      )
+
+      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
+      val maxAirlinesInBrokerCount: Int = airlinesCount
+      val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
+      val maxBrokersInClientCount: Int = brokersCount
+
+    }
+
+    object Overbooking {
+
+    }
+
+  }
+
 }
+
+
+final case class Flight(
+                         initialMinCount: Int,
+                         initialMaxCount: Int,
+                         schedulerEnabled: Boolean,
+                         schedulerDelay: Int,
+                         schedulerMinCount: Int,
+                         schedulerMaxCount: Int,
+                         minDelay: Int = null,
+                         maxDelay: Int = null
+                       )

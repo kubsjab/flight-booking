@@ -6,8 +6,8 @@ import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 
 object ReplyBehaviourProviderFactory {
 
-  val minDelayInSeconds: Int = Configuration.minFlightResponseDelay
-  val maxDelayInSeconds: Int = Configuration.maxFlightResponseDelay
+  val minDelayInSeconds: Int = Configuration.Simulation.Delayed.delayedFlight.minDelay
+  val maxDelayInSeconds: Int = Configuration.Simulation.Delayed.delayedFlight.maxDelay
 
   def create[Command](context: ActorContext[Command], anomalyType: ReplyStrategyType): ReplyBehaviourProvider = {
     anomalyType match {
