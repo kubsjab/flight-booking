@@ -85,14 +85,20 @@ object Client {
     val availableFlights =
       response.brokerFlights.toList
         .flatMap(c => c._2.map(x => (c._1, x)))
-    val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length - 1))
+
+    if (availableFlights.isEmpty) {
+      context.log.info(s"No available flights for requested query")
+      return Effect.none
+    }
+
+    val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length))
     bookTicket(context, state, randomFlight._1, randomFlight._2)
   }
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
       cmd match {
-        case Start() => startClient(context, state)
+        case StartTicketReservation() => findAvailableFlights(context, state)
         case WrappedBookingOperationResult(response) => handleBookingResponse(context, response): Effect[Event, State]
         case c: RemoveBroker => brokerTerminated(context, state, c)
         case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
@@ -137,7 +143,7 @@ object Client {
   }
 
 
-  def startClient(context: ActorContext[Command], state: State): Effect[Event, State] = {
+  def findAvailableFlights(context: ActorContext[Command], state: State): Effect[Event, State] = {
     val queryResponseWrapper: ActorRef[BrokerFlightsQuery.AggregatedBrokerFlights] = context.messageAdapter(rsp => WrappedAggregatedBrokerFlights(rsp))
     context.spawnAnonymous(BrokerFlightsQuery.getFlights(state.brokerActors.values.toList, queryResponseWrapper))
     Effect.none
@@ -170,7 +176,7 @@ object Client {
         .toList
         .filter(_._2 == false)
 
-    availableSeats.apply(Random.nextInt(availableSeats.length - 1))._1
+    availableSeats.apply(Random.nextInt(availableSeats.length))._1
   }
 
   private def brokerTerminated(contxt: ActorContext[Command], state: State, cmd: RemoveBroker): Effect[Event, State] = {

@@ -56,7 +56,7 @@ object ClientManager {
         val client = context.spawn(Client(clientData, brokers), clientData.clientId)
         context.watchWith(client, TerminateClient(clientData.clientId, client))
         context.log.info(s"Client: [${clientData.clientId}] has been created")
-        client ! Client.Start()
+        client ! Client.StartTicketReservation()
         State(state.clientActors.updated(clientData.clientId, client))
       case ClientTerminated(clientId, client) =>
         context.log.info(s"Client: [${clientId}] has been terminated")
