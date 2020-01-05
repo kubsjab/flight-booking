@@ -9,6 +9,7 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 case class BrokerData(brokerId: String, name: String, airlineIds: Set[String])
@@ -65,10 +66,13 @@ object Broker {
         emptyState = State(brokerData.brokerId, airlines),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
-        .withTagger(_ => Set(TAG))
+        .withTagger(taggingAdapter)
 
     }
   }
+
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
+
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>

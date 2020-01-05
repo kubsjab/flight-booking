@@ -4,11 +4,13 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 
 object AirlineManager {
-  final val TAG = "airline-manager"
+
+  final val TAG = "manager-airline"
 
   // command
   sealed trait Command extends CborSerializable
@@ -39,9 +41,12 @@ object AirlineManager {
         emptyState = State(Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
-        .withTagger(_ => Set(TAG))
+        .withTagger(taggingAdapter)
 
     }
+
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
+
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>

@@ -10,6 +10,7 @@ import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
 import pl.edu.pw.ii.sag.flightbooking.core.client.booking.BookingData
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 import scala.util.Random
@@ -17,7 +18,6 @@ import scala.util.Random
 case class ClientData(clientId: String, name: String, brokerIds: Set[String])
 
 object Client {
-
 
   final val TAG = "client"
 
@@ -80,25 +80,12 @@ object Client {
         emptyState = getInitialState(brokers, clientData),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
-        .withTagger(_=> Set(TAG))
+        .withTagger(taggingAdapter)
 
     }
   }
 
-  def handleGetFlightsQueryResponse(context: ActorContext[Command], state: State, response: BrokerFlightsQuery.AggregatedBrokerFlights): Effect[Event, State] = {
-
-    val availableFlights =
-      response.brokerFlights.toList
-        .flatMap(c => c._2.map(x => (c._1, x)))
-
-    if (availableFlights.isEmpty) {
-      context.log.info(s"No available flights for requested query")
-      return Effect.none
-    }
-
-    val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length))
-    bookTicket(context, state, randomFlight._1, randomFlight._2)
-  }
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
@@ -134,6 +121,22 @@ object Client {
         state.copy(bookingRequests = updatedBookingRequests)
     }
   }
+
+  def handleGetFlightsQueryResponse(context: ActorContext[Command], state: State, response: BrokerFlightsQuery.AggregatedBrokerFlights): Effect[Event, State] = {
+
+    val availableFlights =
+      response.brokerFlights.toList
+        .flatMap(c => c._2.map(x => (c._1, x)))
+
+    if (availableFlights.isEmpty) {
+      context.log.info(s"No available flights for requested query")
+      return Effect.none
+    }
+
+    val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length))
+    bookTicket(context, state, randomFlight._1, randomFlight._2)
+  }
+
 
   def handleBookingResponse(context: ActorContext[Command], response: Broker.BookingOperationResult): Effect[Event, State] = {
     response match {

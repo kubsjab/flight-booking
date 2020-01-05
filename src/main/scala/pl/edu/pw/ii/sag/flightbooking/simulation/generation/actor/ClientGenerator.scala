@@ -1,9 +1,8 @@
 package pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.util.Timeout
-import pl.edu.pw.ii.sag.flightbooking.core.broker.BrokerManager.BrokerCollection
 import pl.edu.pw.ii.sag.flightbooking.core.broker.{Broker, BrokerManager}
 import pl.edu.pw.ii.sag.flightbooking.core.client.{Client, ClientData, ClientManager}
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable

@@ -9,6 +9,7 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 object FlightBookingStrategyType extends Enumeration {
@@ -107,13 +108,16 @@ object Flight {
         emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
         commandHandler = commandHandler(context, flightBookingStrategyType),
         eventHandler = eventHandler)
-        .withTagger(_ => Set(TAG))
+        .withTagger(taggingAdapter)
 
     }
 
   private val eventHandler: (State, Event) => State = { (state, event) =>
     state.applyEvent(event)
   }
+
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
+
 
   private def commandHandler(context: ActorContext[Command], flightBookingStrategyType: FlightBookingStrategyType): (State, Command) => Effect[Event, State] = {
     flightBookingStrategyType match {

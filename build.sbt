@@ -16,6 +16,8 @@ libraryDependencies ++= Seq(
   "com.github.dnvriend" %% "akka-persistence-jdbc" % "3.5.2",
   "org.postgresql" % "postgresql" % "42.2.9",
 
+  "com.google.guava" % "guava" % "28.1-jre",
+
   "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
   "org.scalatest" %% "scalatest" % "3.0.8" % Test
 )

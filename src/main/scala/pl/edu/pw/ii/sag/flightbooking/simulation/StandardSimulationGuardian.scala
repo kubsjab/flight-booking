@@ -36,11 +36,11 @@ object StandardSimulationGuardian extends Simulation {
    *
    */
   def apply(): Behavior[Simulation.Message] = Behaviors.setup[Simulation.Message] { context =>
-    val airlineManager = context.spawn(AirlineManager(), "airline-manager")
+    val airlineManager = context.spawn(AirlineManager(), AirlineManager.TAG)
     val airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult] = context.messageAdapter(rsp => AirlinesGenerated(rsp))
-    val brokerManager = context.spawn(BrokerManager(), "broker-manager")
+    val brokerManager = context.spawn(BrokerManager(), BrokerManager.TAG)
     val brokerGeneratorResponseWrapper: ActorRef[BrokerGenerator.OperationResult] = context.messageAdapter(rsp => BrokersGenerated(rsp))
-    val clientManager = context.spawn(ClientManager(), "client-manager")
+    val clientManager = context.spawn(ClientManager(), ClientManager.TAG)
     val clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult] = context.messageAdapter(rsp => ClientsGenerated(rsp))
 
     val airlineGenerator = context.spawn(AirlineGenerator(airlineManager), "airline-generator")

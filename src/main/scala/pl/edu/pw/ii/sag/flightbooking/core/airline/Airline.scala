@@ -10,6 +10,7 @@ import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyT
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightDetails, FlightInfo}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.query.FlightQuery
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 case class AirlineData(airlineId: String, name: String)
@@ -20,6 +21,7 @@ case class FlightActorWrapper(flightInfo: FlightInfo, flightActor: ActorRef[Flig
 object Airline {
 
   final val TAG = "airline"
+
   // command
   sealed trait Command extends CborSerializable
   final case class CreateFlight(flightInfo: FlightInfo, flightBookingStrategy: FlightBookingStrategyType, replyTo: ActorRef[OperationResult]) extends Command
@@ -54,9 +56,11 @@ object Airline {
         emptyState = State(airlineData.airlineId, Map.empty),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
-        .withTagger(_=> Set(TAG))
+        .withTagger(taggingAdapter)
     }
   }
+
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
 
   private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
