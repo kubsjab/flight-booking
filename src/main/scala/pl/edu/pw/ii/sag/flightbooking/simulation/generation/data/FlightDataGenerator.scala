@@ -57,7 +57,7 @@ object FlightDataGenerator {
   }
 
   private def getRandomCity(cityDataSet: Seq[String]): String = {
-    cityDataSet(Random.nextInt(cityDataSet.length - 1))
+    cityDataSet(Random.nextInt(cityDataSet.length))
   }
 
 }

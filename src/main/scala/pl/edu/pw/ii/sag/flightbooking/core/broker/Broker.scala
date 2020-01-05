@@ -19,7 +19,7 @@ object Broker {
 
   // command
   sealed trait Command extends CborSerializable
-  final case class BookFlight(airlineId: String, flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[BookingOperationResult]) extends Command
+  final case class BookFlight(airlineId: String, flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[BookingOperationResult], requestId: Int) extends Command
   final case class CancelFlightBooking(airlineId: String, flightId: String, bookingId: String, replyTo: ActorRef[CancelBookingOperationResult]) extends Command
   final case class GetAirlineFlights(replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySource(source: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
@@ -31,15 +31,17 @@ object Broker {
   final case class AirlineTerminated(airlineId: String, airline: ActorRef[Airline.Command]) extends Event
 
   //state
-  final case class State(airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
+  final case class State(brokerId: String, airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
 
   // reply
   sealed trait CommandReply extends CborSerializable
 
   sealed trait BookingOperationResult extends CommandReply
-  final case class BookingAccepted(bookingId: String) extends BookingOperationResult
+
+  final case class BookingAccepted(bookingId: String, requestId: Int) extends BookingOperationResult
   sealed trait BookingFailed extends BookingOperationResult
-  final case class BookingRejected(reason: String) extends BookingFailed
+
+  final case class BookingRejected(reason: String, requestId: Int) extends BookingFailed
 
   sealed trait CancelBookingOperationResult extends CommandReply
   final case class CancelBookingAccepted() extends CancelBookingOperationResult
@@ -50,17 +52,17 @@ object Broker {
   final case class Timeout() extends SystemFailure
   final case class GeneralSystemFailure(reason: String) extends SystemFailure
 
-  final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]]) extends CommandReply
+  final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]], brokerId: String) extends CommandReply
 
 
   def buildId(customId: String): String = s"$TAG-$customId"
 
-  def apply(brokerData: BrokerData, airlines:Map[String, ActorRef[Airline.Command]]): Behavior[Command] = {
+  def apply(brokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
       airlines.foreach(airlineInfo => context.watchWith(airlineInfo._2, RemoveAirline(airlineInfo._1, airlineInfo._2)))
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(brokerData.brokerId),
-        emptyState = State(airlines),
+        emptyState = State(brokerData.brokerId, airlines),
         commandHandler = commandHandler(context),
         eventHandler = eventHandler(context))
         .withTagger(_ => Set(TAG))
@@ -86,7 +88,7 @@ object Broker {
       case AirlineTerminated(airlineId, airline) =>
         context.log.info(s"Airline: [${airlineId}] has been terminated. Removing from Broker.")
         context.unwatch(airline)
-        State(state.airlineActors - airlineId)
+        state.copy(airlineActors = state.airlineActors - airlineId)
       case _ => state
     }
   }
@@ -98,7 +100,7 @@ object Broker {
   private def bookFlight(context: ActorContext[Command], state: State, cmd: BookFlight): Effect[Event, State] = {
     state.airlineActors.get(cmd.airlineId) match {
       case Some(airline) =>
-        context.spawnAnonymous(FlightBooking.bookFlight(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo))
+        context.spawnAnonymous(FlightBooking.bookFlight(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo, cmd.requestId))
       case None =>
         cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]")
     }
@@ -117,19 +119,19 @@ object Broker {
 
   private def getAirlineFlights(context: ActorContext[Command], state: State, cmd: GetAirlineFlights): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlights(airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlights(airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 
   private def getAirlineFlightsBySource(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySource): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySource(cmd.source, airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySource(cmd.source, airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 
   private def getAirlineFlightsBySourceAndDestination(context: ActorContext[Command], state: State, cmd: GetAirlineFlightsBySourceAndDestination): Effect[Event, State] = {
     val airlineActors = state.airlineActors.values.toSeq
-    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySourceAndDestination(cmd.source, cmd.destination, airlineActors, cmd.replyTo))
+    context.spawnAnonymous(AirlineFlightsQuery.getFlightsBySourceAndDestination(cmd.source, cmd.destination, airlineActors, state.brokerId, cmd.replyTo))
     Effect.none
   }
 

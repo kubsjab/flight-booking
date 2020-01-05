@@ -16,6 +16,7 @@ object AirlineFlightsQuery {
   final case class AggregatedAirlineFlights(airlineFlights: Map[String, Seq[FlightDetails]], replyTo: ActorRef[Broker.AirlineFlightDetailsCollection]) extends Command
 
   def getFlights(airlines: Seq[ActorRef[Airline.Command]],
+                 brokerId: String,
                  replyToWhenCompleted: ActorRef[Broker.AirlineFlightDetailsCollection]): Behavior[Command] =
     Behaviors.setup[Command] { context =>
       context.spawnAnonymous(
@@ -34,11 +35,12 @@ object AirlineFlightsQuery {
             replyToWhenCompleted),
           timeout = 5.seconds))
 
-      messageHandler()
+      messageHandler(brokerId)
     }
 
   def getFlightsBySource(source: String,
                          airlines: Seq[ActorRef[Airline.Command]],
+                         brokerId: String,
                          replyToWhenCompleted: ActorRef[Broker.AirlineFlightDetailsCollection]): Behavior[Command] =
     Behaviors.setup[Command] { context =>
       context.spawnAnonymous(
@@ -57,12 +59,13 @@ object AirlineFlightsQuery {
             replyToWhenCompleted),
           timeout = 5.seconds))
 
-      messageHandler()
+      messageHandler(brokerId)
     }
 
   def getFlightsBySourceAndDestination(source: String,
                                        destination: String,
                                        airlines: Seq[ActorRef[Airline.Command]],
+                                       brokerId: String,
                                        replyToWhenCompleted: ActorRef[Broker.AirlineFlightDetailsCollection]): Behavior[Command] =
     Behaviors.setup[Command] { context =>
       context.spawnAnonymous(
@@ -81,13 +84,13 @@ object AirlineFlightsQuery {
             replyToWhenCompleted),
           timeout = 5.seconds))
 
-      messageHandler()
+      messageHandler(brokerId)
     }
 
-  private def messageHandler(): Behavior[Command] = {
+  private def messageHandler(brokerId: String): Behavior[Command] = {
     Behaviors.receiveMessage {
       case AggregatedAirlineFlights(airlineFlights, replyTo) =>
-        replyTo ! Broker.AirlineFlightDetailsCollection(airlineFlights)
+        replyTo ! Broker.AirlineFlightDetailsCollection(airlineFlights, brokerId)
         Behaviors.stopped
     }
   }

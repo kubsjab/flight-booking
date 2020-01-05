@@ -12,7 +12,7 @@ object PlaneGenerator {
 
 
   def getRandomPlane(): Plane = {
-    planeDataSet(Random.nextInt(planeDataSet.length - 1))
+    planeDataSet(Random.nextInt(planeDataSet.length))
   }
 
   private def readData(): Seq[Plane] = {
