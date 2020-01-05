@@ -4,6 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
+import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 import pl.edu.pw.ii.sag.flightbooking.util.Aggregator
 
@@ -33,7 +34,7 @@ object AirlineFlightsQuery {
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,
             replyToWhenCompleted),
-          timeout = 5.seconds))
+          timeout = FiniteDuration(Configuration.Core.Broker.flightQueryTimeout, SECONDS)))
 
       messageHandler(brokerId)
     }
@@ -57,7 +58,7 @@ object AirlineFlightsQuery {
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,
             replyToWhenCompleted),
-          timeout = 5.seconds))
+          timeout = FiniteDuration(Configuration.Core.Broker.flightQueryTimeout, SECONDS)))
 
       messageHandler(brokerId)
     }
@@ -82,7 +83,7 @@ object AirlineFlightsQuery {
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,
             replyToWhenCompleted),
-          timeout = 5.seconds))
+          timeout = FiniteDuration(Configuration.Core.Broker.flightQueryTimeout, SECONDS)))
 
       messageHandler(brokerId)
     }

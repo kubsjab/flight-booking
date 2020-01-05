@@ -10,6 +10,15 @@ object Configuration {
     object Broker {
       val bookingTimeout = configuration.getInt("configuration.core.broker.booking-timeout")
       val cancelBookingTimeout = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
+      val flightQueryTimeout = configuration.getInt("configuration.core.broker.flight-query-timeout")
+    }
+
+    object Airline {
+      val flightQueryTimeout = configuration.getInt("configuration.core.airline.flight-query-timeout")
+    }
+
+    object Client {
+      val flightQueryTimeout = configuration.getInt("configuration.core.client.flight-query-timeout")
     }
 
   }
