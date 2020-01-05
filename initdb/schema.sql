@@ -1,3 +1,5 @@
+-- TABLES
+
 DROP TABLE IF EXISTS journal;
 
 CREATE TABLE IF NOT EXISTS journal (
@@ -21,3 +23,28 @@ CREATE TABLE IF NOT EXISTS snapshot (
   snapshot BYTEA NOT NULL,
   PRIMARY KEY(persistence_id, sequence_number)
 );
+
+
+
+-- FUNCTIONS
+
+CREATE OR REPLACE FUNCTION  bytea_to_json(msg bytea) RETURNS json AS $$
+DECLARE
+    encoded_msg text := encode(msg, 'escape');
+BEGIN
+    RETURN (substring(
+            substring(encoded_msg for length(encoded_msg) - position('}' in reverse(encoded_msg)) + 1)
+            from position('{' in encoded_msg)))::json;
+END;$$
+    LANGUAGE PLPGSQL;
+
+
+CREATE OR REPLACE FUNCTION  bytea_to_jsonb(msg bytea) RETURNS jsonb AS $$
+DECLARE
+    encoded_msg text := encode(msg, 'escape');
+BEGIN
+    RETURN (substring(
+            substring(encoded_msg for length(encoded_msg) - position('}' in reverse(encoded_msg)) + 1)
+            from position('{' in encoded_msg)))::jsonb;
+END;$$
+    LANGUAGE PLPGSQL;
