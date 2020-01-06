@@ -141,12 +141,14 @@ object FlightGenerator {
       case SimulationType.DELAYED => ReplyStrategyType.DELAY
     }
 
-    val flightsCount = Random.between(cmd.minCount, cmd.maxCount)
-    (0 to flightsCount).foreach(_ => {
-      val flightInfo = FlightDataGenerator.generateRandomFlightInfo()
-      cmd.airline ! Airline.CreateFlight(flightInfo, flightBookingStrategy, replyStrategy, airlineResponseWrapper)
-    })
 
+    val flightsCount = cmd.minCount + Random.nextInt(cmd.maxCount - cmd.minCount + 1)
+    if (flightsCount > 0) {
+      (0 to flightsCount).foreach(_ => {
+        val flightInfo = FlightDataGenerator.generateRandomFlightInfo()
+        cmd.airline ! Airline.CreateFlight(flightInfo, flightBookingStrategy, replyStrategy, airlineResponseWrapper)
+      })
+    }
     Behaviors.same
   }
 
