@@ -1,6 +1,7 @@
 package pl.edu.pw.ii.sag.flightbooking.core.configuration
 
 import com.typesafe.config.ConfigFactory
+import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationConfig
 
 object Configuration {
   val configuration = ConfigFactory.load("application.conf")
@@ -22,7 +23,7 @@ object Configuration {
       val planeFileName: String = configuration.getString("configuration.simulation.generation.planeSourceFile")
     }
 
-    object Standard {
+    object Standard extends SimulationConfig {
       val airlinesCount: Int = configuration.getInt("configuration.simulation.standard.airline.count")
       val brokersCount: Int = configuration.getInt("configuration.simulation.standard.broker.count")
       val clientsCount: Int = configuration.getInt("configuration.simulation.standard.client.count")
@@ -76,7 +77,7 @@ object Configuration {
 
     }
 
-    object Overbooking {
+    object Overbooking extends SimulationConfig {
 
     }
 
@@ -92,6 +93,6 @@ final case class Flight(
                          schedulerDelay: Int,
                          schedulerMinCount: Int,
                          schedulerMaxCount: Int,
-                         minDelay: Int = null,
-                         maxDelay: Int = null
+                         minDelay: Int = 0,
+                         maxDelay: Int = 0
                        )

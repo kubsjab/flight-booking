@@ -16,7 +16,7 @@ object PlaneGenerator {
   }
 
   private def readData(): Seq[Plane] = {
-    Source.fromResource(Configuration.planeFileName).getLines()
+    Source.fromResource(Configuration.Simulation.DataGenerator.planeFileName).getLines()
       .map(line => {
         val Array(name, seats) = line.split(",")
         Plane(name, (1 to seats.toInt).map(x => Seat(x.toString)))

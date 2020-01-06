@@ -13,12 +13,13 @@ object SimulationType extends Enumeration {
 object Simulation {
 
   trait Message extends CborSerializable
+
   final case class Start() extends Message
 
 }
 
+trait SimulationConfig
+
 trait Simulation {
-
   val simulationType: SimulationType
-
 }
