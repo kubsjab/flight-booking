@@ -13,9 +13,9 @@ abstract class FlightBookingStrategy(val behaviourProvider: ReplyBehaviourProvid
         case openState@OpenedFlight(_, _) =>
           cmd match {
             case c: GetFlightDetails => getFlightDetails(context, state, c)
-            case c: Book => bookFlight(openState, c)
-            case c: CancelBooking => cancelBooking(openState, c)
-            case c: CloseFlight => closeFlight(openState, c)
+            case c: Book => bookFlight(context, openState, c)
+            case c: CancelBooking => cancelBooking(context, openState, c)
+            case c: CloseFlight => closeFlight(context, openState, c)
             case _ => behaviourProvider.unhandledWithNoReply()
           }
 
@@ -29,11 +29,11 @@ abstract class FlightBookingStrategy(val behaviourProvider: ReplyBehaviourProvid
       }
   }
 
-  protected def bookFlight(flightState: OpenedFlight, cmd: Book): ReplyEffect[Event, State]
+  protected def bookFlight(context: ActorContext[Flight.Command], flightState: OpenedFlight, cmd: Book): ReplyEffect[Event, State]
 
-  protected def cancelBooking(flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State]
+  protected def cancelBooking(context: ActorContext[Flight.Command], flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State]
 
-  protected def closeFlight(flightState: OpenedFlight, cmd: CloseFlight): ReplyEffect[Event, State]
+  protected def closeFlight(context: ActorContext[Flight.Command], flightState: OpenedFlight, cmd: CloseFlight): ReplyEffect[Event, State]
 
   protected def getFlightDetails(context: ActorContext[Flight.Command], flightState: State, cmd: GetFlightDetails): ReplyEffect[Event, State] = {
     behaviourProvider.reply(cmd.replyTo,

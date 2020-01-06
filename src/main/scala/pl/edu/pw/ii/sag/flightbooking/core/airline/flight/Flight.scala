@@ -47,6 +47,7 @@ object Flight {
   // event
   sealed trait Event extends CborSerializable
   final case class Booked(seatId: String, booking: Booking) extends Event
+  final case class OverBooked(seatId: String, booking: Booking) extends Event
   final case class BookingCancelled(seatId: String, booking: Booking) extends Event
   final case class FlightClosed() extends Event
 
@@ -91,6 +92,7 @@ object Flight {
     override def applyEvent(event: Event): State = {
       event match {
         case Booked(seatId, reservation) => copy(flightInfo, seatReservations.updated(seatId, Some(reservation)))
+        case OverBooked(seatId, reservation) => copy(flightInfo, seatReservations.updated(seatId, Some(reservation)))
         case BookingCancelled(seatId, _) => copy(flightInfo, seatReservations - seatId)
         case FlightClosed() => ClosedFlight(flightInfo, seatReservations)
       }
@@ -124,7 +126,7 @@ object Flight {
     val behaviourProvider = ReplyBehaviourProviderFactory.create(context, replyStrategyType)
     flightBookingStrategyType match {
       case FlightBookingStrategyType.STANDARD => StandardFlightBookingStrategy(behaviourProvider).commandHandler(context)
-      case FlightBookingStrategyType.OVERBOOKING => ???
+      case FlightBookingStrategyType.OVERBOOKING => OverbookingFlightBookingStrategy(behaviourProvider).commandHandler(context)
     }
   }
 

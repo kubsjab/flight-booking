@@ -5,25 +5,28 @@ import akka.persistence.typed.scaladsl.ReplyEffect
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.Flight._
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyBehaviourProvider
 
-object StandardFlightBookingStrategy {
+object OverbookingFlightBookingStrategy {
 
-  def apply(replyBehaviourProvider: ReplyBehaviourProvider): StandardFlightBookingStrategy = new StandardFlightBookingStrategy(replyBehaviourProvider)
+  def apply(replyBehaviourProvider: ReplyBehaviourProvider): OverbookingFlightBookingStrategy = new OverbookingFlightBookingStrategy(replyBehaviourProvider)
 
 }
 
-class StandardFlightBookingStrategy(behaviourProvider: ReplyBehaviourProvider) extends FlightBookingStrategy(behaviourProvider) {
+class OverbookingFlightBookingStrategy(behaviourProvider: ReplyBehaviourProvider) extends FlightBookingStrategy(behaviourProvider) {
+
 
   override protected def bookFlight(context: ActorContext[Flight.Command], flightState: OpenedFlight, cmd: Book): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.flightId)) {
+      context.log.warn(s"Provided flightId is invalid: [${cmd.flightId}]")
       return behaviourProvider.reply(cmd.replyTo, BookingRejected("Invalid flightId", cmd.requestId))
     }
+    val booking = Booking.createBooking(cmd.customer)
     if (flightState.isBooked(cmd.seatId)) {
-      context.log.info(s"Unable to book seat: [${cmd.seatId}] as it is already booked.")
-      behaviourProvider.reply(cmd.replyTo, BookingRejected(s"Seat with id ${cmd.seatId} is already booked", cmd.requestId))
+      context.log.warn(s"Seat [${cmd.seatId}] is already booked." +
+        s" Replacing old booking: [${flightState.seatReservations(cmd.seatId).get}] " + s"with new one: [${booking}]")
+      behaviourProvider.persistAndReply(OverBooked(cmd.seatId, booking), cmd.replyTo, BookingAccepted(booking.bookingId, cmd.requestId))
     }
     else {
-      val booking = Booking.createBooking(cmd.customer)
-      context.log.info(s"Saving booking: [${booking.bookingId}] for seat: [${cmd.seatId}]")
+      context.log.info(s"Adding booking: [${booking.bookingId}] for seat: [${cmd.seatId}]]")
       behaviourProvider.persistAndReply(Booked(cmd.seatId, booking), cmd.replyTo, BookingAccepted(booking.bookingId, cmd.requestId))
     }
   }
