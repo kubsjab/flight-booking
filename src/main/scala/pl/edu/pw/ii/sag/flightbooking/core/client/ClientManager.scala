@@ -21,6 +21,7 @@ object ClientManager {
   final case class GetClient(clientId: String, replyTo: ActorRef[ClientCollection]) extends Command
   final case class GetClients(replyTo: ActorRef[ClientCollection]) extends Command
   final case class InitClientsReservationScheduler(delayMin: Int, delayMax: Int) extends Command
+  final case class InitClientsReservationCancellingScheduler(delayMin: Int, delayMax: Int) extends Command
   private final case class TerminateClient(clientId: String, client: ActorRef[Client.Command]) extends Command
 
   // event
@@ -59,6 +60,7 @@ object ClientManager {
         case c: GetClient => getClient(state, c)
         case c: GetClients => getClients(state, c)
         case c: InitClientsReservationScheduler => initClientsReservationScheduler(state, c)
+        case c: InitClientsReservationCancellingScheduler => initClientsReservationCancellingScheduler(state, c)
       }
   }
 
@@ -102,6 +104,12 @@ object ClientManager {
   private def initClientsReservationScheduler(state: State, cmd: InitClientsReservationScheduler): Effect[Event, State] = {
     state.clientActors.foreach(
       clientInfo => clientInfo._2 ! Client.InitScheduledTicketReservation(Client.StartTicketReservation(), FiniteDuration(Random.between(cmd.delayMin, cmd.delayMax), duration.SECONDS)))
+    Effect.none
+  }
+
+  private def initClientsReservationCancellingScheduler(state: State, cmd: InitClientsReservationCancellingScheduler): Effect[Event, State] = {
+    state.clientActors.foreach(
+      clientInfo => clientInfo._2 ! Client.InitScheduledReservationCancelling(Client.StartTicketCancelling(), FiniteDuration(Random.between(cmd.delayMin, cmd.delayMax), duration.SECONDS)))
     Effect.none
   }
 }
