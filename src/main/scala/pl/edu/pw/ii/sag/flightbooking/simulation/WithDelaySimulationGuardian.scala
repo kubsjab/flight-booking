@@ -2,6 +2,7 @@ package pl.edu.pw.ii.sag.flightbooking.simulation
 
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.{ActorRef, Behavior}
+import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
 import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
@@ -64,5 +65,11 @@ class WithDelaySimulationGuardian(initialAgentCount: InitialAgentCount) extends 
         FiniteDuration(config.delayedFlight.schedulerDelay, duration.SECONDS)
       )
     }
+  }
+
+  override def initializeClientRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit = {
+    clientManager ! ClientManager.InitClientsReservationScheduler(
+      Configuration.Simulation.Delayed.clientTicketReservationSchedulerMinDelay,
+      Configuration.Simulation.Delayed.clientTicketReservationSchedulerMaxDelay)
   }
 }

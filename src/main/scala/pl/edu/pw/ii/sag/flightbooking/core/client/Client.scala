@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.core.client
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeoutException
 
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
@@ -31,6 +31,7 @@ object Client {
 
   final case class StartTicketReservation() extends Command
   final case class StartTicketCancelling() extends Command
+  final case class InitScheduledTicketReservation(scheduledCmd: StartTicketReservation, delay: FiniteDuration) extends Command
 
   private final case class WrappedBookingOperationResult(response: Broker.BookingOperationResult) extends Command
   private final case class WrappedCancelingOperationResult(response: Broker.CancelBookingOperationResult) extends Command
@@ -60,19 +61,20 @@ object Client {
                         ) extends CborSerializable {
   }
 
+  private case object TimerKey
 
   def buildId(customId: String): String = s"$TAG-$customId"
 
   def apply(clientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
-    Behaviors.setup { context =>
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
-        emptyState = getInitialState(brokers, clientData),
-        commandHandler = commandHandler(context),
-        eventHandler = eventHandler(context))
-        .withTagger(taggingAdapter)
-
-    }
+    Behaviors.withTimers(timers =>
+      Behaviors.setup { context =>
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
+          emptyState = getInitialState(brokers, clientData),
+          commandHandler = commandHandler(context, timers),
+          eventHandler = eventHandler(context))
+          .withTagger(taggingAdapter)
+      })
   }
 
   private def getInitialState(brokerActors: Map[String, ActorRef[Broker.Command]], clientData: ClientData): State = {
@@ -81,7 +83,7 @@ object Client {
 
   private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
 
-  private def commandHandler(context: ActorContext[Command]): (State, Command) => Effect[Event, State] = {
+  private def commandHandler(context: ActorContext[Command], timers: TimerScheduler[Command]): (State, Command) => Effect[Event, State] = {
     (state, cmd) =>
       cmd match {
         case StartTicketReservation() => findAvailableFlights(context, state)
@@ -92,6 +94,7 @@ object Client {
         case CancellingFailedResult(exception, requestId) => handleCancellingFailedResult(context, exception, requestId): Effect[Event, State]
         case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
         case c: RemoveBroker => brokerTerminated(c)
+        case InitScheduledTicketReservation(scheduledCmd, delay) => scheduledTicketReservation(context, timers, scheduledCmd, delay)
         case _ => Effect.none
       }
   }
@@ -292,5 +295,15 @@ object Client {
 
   private def brokerTerminated(cmd: RemoveBroker): Effect[Event, State] = {
     Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
+  }
+
+  private def scheduledTicketReservation(context: ActorContext[Command],
+                                         timers: TimerScheduler[Command],
+                                         cmd: StartTicketReservation,
+                                         delay: FiniteDuration): Effect[Event, State] = {
+    if (!timers.isTimerActive(TimerKey)){
+      timers.startTimerWithFixedDelay(TimerKey, cmd, delay)
+    }
+    Effect.none
   }
 }
