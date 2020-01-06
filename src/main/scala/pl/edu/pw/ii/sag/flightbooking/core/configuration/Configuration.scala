@@ -2,6 +2,9 @@ package pl.edu.pw.ii.sag.flightbooking.core.configuration
 
 import com.typesafe.config.ConfigFactory
 
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+
 object Configuration {
   val configuration = ConfigFactory.load("application.conf")
 
@@ -26,6 +29,8 @@ object Configuration {
   }
 
   object Simulation {
+
+    val duration: FiniteDuration = FiniteDuration(configuration.getInt("configuration.simulation.duration"), SECONDS)
 
     object DataGenerator {
       val flightRoutesCount: Int = configuration.getInt("configuration.simulation.generation.routes")
