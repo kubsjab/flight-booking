@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.WordSpecLike
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.airline.{Airline, AirlineData}
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.{Plane, Seat}
 
@@ -36,7 +37,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
       val probe = testKit.createTestProbe[Airline.OperationResult]
       val flightInfo = randomFlightInfo()
 
-      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, ReplyStrategyType.NORMAL, probe.ref)
 
       probe.expectMessage(Airline.FlightCreationConfirmed(flightInfo.flightId))
     }
@@ -46,9 +47,9 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
       val probe = testKit.createTestProbe[Airline.OperationResult]
       val flightInfo = randomFlightInfo()
 
-      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, ReplyStrategyType.NORMAL, probe.ref)
       probe.expectMessage(Airline.FlightCreationConfirmed(flightInfo.flightId))
-      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, probe.ref)
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, ReplyStrategyType.NORMAL, probe.ref)
       probe.expectMessage(Airline.Rejected(s"Flight - [${flightInfo.flightId}] already exists"))
     }
 
@@ -56,7 +57,7 @@ class AirlineSpec extends ScalaTestWithActorTestKit(s"""
       val airline = testKit.spawn(Airline(airlineData()))
       val createFlightProbe = testKit.createTestProbe[Airline.OperationResult]
       val flightInfo = randomFlightInfo()
-      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, createFlightProbe.ref)
+      airline ! Airline.CreateFlight(flightInfo, FlightBookingStrategyType.STANDARD, ReplyStrategyType.NORMAL, createFlightProbe.ref)
 
       val getFlightsProbe = testKit.createTestProbe[Airline.FlightDetailsCollection]
       airline ! Airline.GetFlights(getFlightsProbe.ref)

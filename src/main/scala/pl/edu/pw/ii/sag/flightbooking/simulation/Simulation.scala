@@ -5,7 +5,7 @@ import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 
 object SimulationType extends Enumeration {
   type SimulationType = Value
-  val STANDARD, OVERBOOKING = Value
+  val STANDARD, OVERBOOKING, DELAYED = Value
 
   def of(s: String): Option[Value] = values.find(_.toString.equalsIgnoreCase(s))
 }
@@ -13,12 +13,13 @@ object SimulationType extends Enumeration {
 object Simulation {
 
   trait Message extends CborSerializable
+
   final case class Start() extends Message
 
 }
 
+trait SimulationConfig
+
 trait Simulation {
-
   val simulationType: SimulationType
-
 }

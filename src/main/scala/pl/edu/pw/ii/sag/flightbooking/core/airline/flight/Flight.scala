@@ -7,17 +7,19 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyBehaviourProviderFactory
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyStrategyType.ReplyStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 object FlightBookingStrategyType extends Enumeration {
-    type FlightBookingStrategyType = Value
-    val STANDARD, OVERBOOKING = Value
+  type FlightBookingStrategyType = Value
+  val STANDARD, OVERBOOKING = Value
 }
 
-case class FlightDetails(flightInfo: FlightInfo, open: Boolean, seatReservations: Map[String, Boolean]){
+case class FlightDetails(flightInfo: FlightInfo, open: Boolean, seatReservations: Map[String, Boolean]) {
   def flightId: String = flightInfo.flightId
 }
 
@@ -101,12 +103,12 @@ object Flight {
     }
   }
 
-  def apply(flightInfo: FlightInfo, flightBookingStrategyType: FlightBookingStrategyType): Behavior[Command] =
+  def apply(flightInfo: FlightInfo, flightBookingStrategyType: FlightBookingStrategyType, replyStrategyType: ReplyStrategyType): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(flightInfo.flightId),
         emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
-        commandHandler = commandHandler(context, flightBookingStrategyType),
+        commandHandler = commandHandler(context, flightBookingStrategyType, replyStrategyType),
         eventHandler = eventHandler)
         .withTagger(taggingAdapter)
 
@@ -118,9 +120,10 @@ object Flight {
 
   private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
 
-  private def commandHandler(context: ActorContext[Command], flightBookingStrategyType: FlightBookingStrategyType): (State, Command) => Effect[Event, State] = {
+  private def commandHandler(context: ActorContext[Command], flightBookingStrategyType: FlightBookingStrategyType, replyStrategyType: ReplyStrategyType): (State, Command) => Effect[Event, State] = {
+    val behaviourProvider = ReplyBehaviourProviderFactory.create(context, replyStrategyType)
     flightBookingStrategyType match {
-      case FlightBookingStrategyType.STANDARD => StandardFlightBookingStrategy().commandHandler(context)
+      case FlightBookingStrategyType.STANDARD => StandardFlightBookingStrategy(behaviourProvider).commandHandler(context)
       case FlightBookingStrategyType.OVERBOOKING => ???
     }
   }

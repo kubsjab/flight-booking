@@ -16,7 +16,7 @@ object FlightDataGenerator {
 
   private val MAX_FLIGHT_TIME_IN_MINUTES = 2000
   private val MAX_FLIGHT_TIME_DIFFERENCE = 30
-  private val ROUTES_NUMBER = Configuration.flightRoutesCount
+  private val ROUTES_NUMBER = Configuration.Simulation.DataGenerator.flightRoutesCount
   val routes: Seq[Route] = generateRoutes(ROUTES_NUMBER)
 
   def generateRandomFlightInfo(): FlightInfo = {
@@ -36,7 +36,7 @@ object FlightDataGenerator {
   }
 
   private def readData(): Seq[String] = {
-    Source.fromResource(Configuration.cityFileName).getLines()
+    Source.fromResource(Configuration.Simulation.DataGenerator.cityFileName).getLines()
       .toSeq
   }
 

@@ -9,37 +9,25 @@ import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenera
 import scala.concurrent.duration
 import scala.concurrent.duration.FiniteDuration
 
-object StandardSimulationGuardian extends Simulation {
-  override val simulationType: SimulationType = SimulationType.STANDARD
+object WithDelaySimulationGuardian extends Simulation {
+  override val simulationType: SimulationType = SimulationType.DELAYED
   private val initialAgentCount = InitialAgentCount(
-    Configuration.Simulation.Standard.airlinesCount,
-    Configuration.Simulation.Standard.brokersCount,
-    Configuration.Simulation.Standard.clientsCount
+    Configuration.Simulation.Delayed.airlinesCount,
+    Configuration.Simulation.Delayed.brokersCount,
+    Configuration.Simulation.Delayed.clientsCount
   )
 
-  def apply(): Behavior[Simulation.Message] = new StandardSimulationGuardian(initialAgentCount).apply()
+  def apply(): Behavior[Simulation.Message] = new WithDelaySimulationGuardian(initialAgentCount).apply()
 }
 
-class StandardSimulationGuardian(initialAgentCount: InitialAgentCount) extends AbstractSimulationGuardian(initialAgentCount) {
+class WithDelaySimulationGuardian(initialAgentCount: InitialAgentCount) extends AbstractSimulationGuardian(initialAgentCount) {
 
-  private val config = Configuration.Simulation.Standard
+  private val config = Configuration.Simulation.Delayed
 
   override def generateAirlines(context: ActorContext[Simulation.Message],
                                 airlineGenerator: ActorRef[AirlineGenerator.Command],
                                 airlineGeneratorResponseWrapper: ActorRef[AirlineGenerator.OperationResult]): Unit = {
     airlineGenerator ! AirlineGenerator.GenerateStandardAirlines(config.airlinesCount, airlineGeneratorResponseWrapper)
-  }
-
-  override def generateFlights(context: ActorContext[Simulation.Message],
-                               flightGenerator: ActorRef[FlightGenerator.Command],
-                               airlineIds: Set[String]): Unit = {
-    flightGenerator ! FlightGenerator.GenerateStandardFlights(airlineIds, config.flight.initialMinCount, config.flight.initialMaxCount)
-    if (config.flight.schedulerEnabled) {
-      flightGenerator ! FlightGenerator.InitScheduledStandardFlightsGeneration(
-        FlightGenerator.GenerateStandardFlights(airlineIds, config.flight.schedulerMinCount, config.flight.schedulerMaxCount),
-        FiniteDuration(config.flight.schedulerDelay, duration.SECONDS)
-      )
-    }
   }
 
   override def generateBrokers(context: ActorContext[Simulation.Message],
@@ -56,5 +44,25 @@ class StandardSimulationGuardian(initialAgentCount: InitialAgentCount) extends A
                                clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult]): Unit = {
     clientGenerator ! ClientGenerator.GenerateStandardClients(
       config.clientsCount, brokersIds, config.minBrokersInClientCount, config.maxBrokersInClientCount, clientGeneratorResponseWrapper)
+  }
+
+  override def generateFlights(context: ActorContext[Simulation.Message],
+                               flightGenerator: ActorRef[FlightGenerator.Command],
+                               airlineIds: Set[String]): Unit = {
+    flightGenerator ! FlightGenerator.GenerateStandardFlights(airlineIds, config.standardFlight.initialMinCount, config.standardFlight.initialMaxCount)
+    flightGenerator ! FlightGenerator.GenerateDelayedFlights(airlineIds, config.delayedFlight.initialMinCount, config.delayedFlight.initialMaxCount)
+
+    if (config.standardFlight.schedulerEnabled) {
+      flightGenerator ! FlightGenerator.InitScheduledStandardFlightsGeneration(
+        FlightGenerator.GenerateStandardFlights(airlineIds, config.standardFlight.schedulerMinCount, config.standardFlight.schedulerMaxCount),
+        FiniteDuration(config.standardFlight.schedulerDelay, duration.SECONDS)
+      )
+    }
+    if (config.delayedFlight.schedulerEnabled) {
+      flightGenerator ! FlightGenerator.InitScheduledDelayedFlightsGeneration(
+        FlightGenerator.GenerateDelayedFlights(airlineIds, config.delayedFlight.schedulerMinCount, config.delayedFlight.schedulerMaxCount),
+        FiniteDuration(config.delayedFlight.schedulerDelay, duration.SECONDS)
+      )
+    }
   }
 }
