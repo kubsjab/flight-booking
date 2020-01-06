@@ -11,7 +11,7 @@ services:
     environment:
       POSTGRES_USER: docker
       POSTGRES_PASSWORD: docker
-      POSTGRES_MULTIPLE_DATABASES: standard_db,overbooking_db
+      POSTGRES_MULTIPLE_DATABASES: standard_db,overbooking_db,delayed_db
 
 volumes:
   pg_data:

@@ -279,7 +279,7 @@ object Client {
           )
         ) {
           case Success(rsp) => WrappedCancelingOperationResult(rsp)
-          case Failure(ex) => BookingFailedResult(ex, bookingData.id)
+          case Failure(ex) => CancellingFailedResult(ex, bookingData.id)
         }
       )
   }

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SIMULATION_TYPE=standard
+#SIMULATION_TYPE=delayed
 #SIMULATION_TYPE=overbooking
 
 export DB_NAME=$SIMULATION_TYPE'_db'
