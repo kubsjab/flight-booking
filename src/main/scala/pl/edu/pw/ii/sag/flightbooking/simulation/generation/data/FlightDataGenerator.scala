@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.simulation.generation.data
 import java.time.ZonedDateTime
 import java.util.UUID
 
-import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightInfo
+import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightInfo}
 import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 
 import scala.collection.mutable
@@ -25,7 +25,7 @@ object FlightDataGenerator {
     val startDateTime = ZonedDateTime.now()
     val endDateTime = startDateTime.plusMinutes(route.duration + randomTimeDiff)
     FlightInfo(
-      UUID.randomUUID().toString,
+      Flight.buildId(UUID.randomUUID().toString),
       "",
       PlaneGenerator.getRandomPlane(),
       startDateTime,

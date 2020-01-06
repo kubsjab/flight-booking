@@ -11,6 +11,7 @@ import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyBeh
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.replyStrategy.ReplyStrategyType.ReplyStrategyType
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.core.domain.flight.Plane
+import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 object FlightBookingStrategyType extends Enumeration {
@@ -46,7 +47,7 @@ object Flight {
   // event
   sealed trait Event extends CborSerializable
   final case class Booked(seatId: String, booking: Booking) extends Event
-  final case class BookingCancelled(seatId: String) extends Event
+  final case class BookingCancelled(seatId: String, booking: Booking) extends Event
   final case class FlightClosed() extends Event
 
   // reply
@@ -76,10 +77,10 @@ object Flight {
 
     def isFlightIdValid(flightId: String): Boolean = flightInfo.flightId == flightId
 
-    def getSeatByBookingId(bookingId: String): Option[(String)] = {
+    def getSeatEntryByBookingId(bookingId: String): Option[(String, Booking)] = {
       seatReservations.view
         .find((seatEntry: (String, Option[Booking])) => seatEntry._2.isDefined && seatEntry._2.get.bookingId == bookingId)
-        .map(_._1)
+        .map((seatEntry: (String, Option[Booking])) => seatEntry._1 -> seatEntry._2.get)
     }
 
   }
@@ -90,7 +91,7 @@ object Flight {
     override def applyEvent(event: Event): State = {
       event match {
         case Booked(seatId, reservation) => copy(flightInfo, seatReservations.updated(seatId, Some(reservation)))
-        case BookingCancelled(seatId) => copy(flightInfo, seatReservations - seatId)
+        case BookingCancelled(seatId, _) => copy(flightInfo, seatReservations - seatId)
         case FlightClosed() => ClosedFlight(flightInfo, seatReservations)
       }
     }
@@ -109,13 +110,15 @@ object Flight {
         emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
         commandHandler = commandHandler(context, flightBookingStrategyType, replyStrategyType),
         eventHandler = eventHandler)
-        .withTagger(_ => Set(TAG))
+        .withTagger(taggingAdapter)
 
     }
 
   private val eventHandler: (State, Event) => State = { (state, event) =>
     state.applyEvent(event)
   }
+
+  private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
 
   private def commandHandler(context: ActorContext[Command], flightBookingStrategyType: FlightBookingStrategyType, replyStrategyType: ReplyStrategyType): (State, Command) => Effect[Event, State] = {
     val behaviourProvider = ReplyBehaviourProviderFactory.create(context, replyStrategyType)

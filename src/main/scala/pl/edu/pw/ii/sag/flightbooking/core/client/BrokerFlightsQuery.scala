@@ -4,6 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
+import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 import pl.edu.pw.ii.sag.flightbooking.util.Aggregator
 
@@ -30,7 +31,7 @@ object BrokerFlightsQuery {
               .map(c => c.brokerId -> c.airlineFlights.values.flatten.toSeq)
               .filter(_._2.nonEmpty)
               .toMap),
-          timeout = 5.seconds))
+          timeout = FiniteDuration(Configuration.Core.Client.flightQueryTimeout, SECONDS)))
 
       Behaviors.receiveMessage {
         case c: AggregatedBrokerFlights =>

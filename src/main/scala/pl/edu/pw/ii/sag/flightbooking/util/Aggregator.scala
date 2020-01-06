@@ -1,8 +1,8 @@
 package pl.edu.pw.ii.sag.flightbooking.util
 
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
 
 import scala.collection.immutable
 import scala.concurrent.duration.FiniteDuration

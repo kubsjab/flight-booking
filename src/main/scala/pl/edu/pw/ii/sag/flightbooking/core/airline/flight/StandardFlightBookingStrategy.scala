@@ -29,12 +29,12 @@ class StandardFlightBookingStrategy(behaviourProvider: ReplyBehaviourProvider) e
     if (!flightState.isFlightIdValid(cmd.flightId)) {
       return behaviourProvider.reply(cmd.replyTo, CancelBookingRejected("Invalid flightId"))
     }
-    val bookedSeatId = flightState.getSeatByBookingId(cmd.bookingId)
-    if (bookedSeatId.isEmpty) {
+    val bookedEntry = flightState.getSeatEntryByBookingId(cmd.bookingId)
+    if (bookedEntry.isEmpty) {
       behaviourProvider.reply(cmd.replyTo, CancelBookingRejected(s"Booking with id ${cmd.bookingId} does not exist"))
     }
     else {
-      behaviourProvider.persistAndReply(BookingCancelled(bookedSeatId.get), cmd.replyTo, CancelBookingAccepted())
+      behaviourProvider.persistAndReply(BookingCancelled(bookedEntry.get._1, bookedEntry.get._2), cmd.replyTo, CancelBookingAccepted())
     }
   }
 

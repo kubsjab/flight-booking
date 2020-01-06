@@ -1,7 +1,6 @@
 package pl.edu.pw.ii.sag.flightbooking.core.configuration
 
 import com.typesafe.config.ConfigFactory
-import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationConfig
 
 object Configuration {
   val configuration = ConfigFactory.load("application.conf")
@@ -9,6 +8,17 @@ object Configuration {
   object Core {
 
     object Broker {
+      val bookingTimeout = configuration.getInt("configuration.core.broker.booking-timeout")
+      val cancelBookingTimeout = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
+      val flightQueryTimeout = configuration.getInt("configuration.core.broker.flight-query-timeout")
+    }
+
+    object Airline {
+      val flightQueryTimeout = configuration.getInt("configuration.core.airline.flight-query-timeout")
+    }
+
+    object Client {
+      val flightQueryTimeout = configuration.getInt("configuration.core.client.flight-query-timeout")
       val bookingTimeout: Int = configuration.getInt("configuration.core.broker.booking-timeout")
       val cancelBookingTimeout: Int = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
     }
@@ -23,7 +33,7 @@ object Configuration {
       val planeFileName: String = configuration.getString("configuration.simulation.generation.planeSourceFile")
     }
 
-    object Standard extends SimulationConfig {
+    object Standard {
       val airlinesCount: Int = configuration.getInt("configuration.simulation.standard.airline.count")
       val brokersCount: Int = configuration.getInt("configuration.simulation.standard.broker.count")
       val clientsCount: Int = configuration.getInt("configuration.simulation.standard.client.count")
@@ -77,7 +87,7 @@ object Configuration {
 
     }
 
-    object Overbooking extends SimulationConfig {
+    object Overbooking {
 
     }
 

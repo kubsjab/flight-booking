@@ -4,6 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.{Flight, FlightDetails}
+import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 import pl.edu.pw.ii.sag.flightbooking.util.Aggregator
 
@@ -27,7 +28,7 @@ object FlightQuery {
           expectedReplies = flightActors.size,
           replyTo = context.self,
           aggregateReplies = flightDetailsMsgSeq => AggregatedFlights(flightDetailsMsgSeq.map(fdm => fdm.flightDetails), replyToWhenCompleted),
-          timeout = 5.seconds))
+          timeout = FiniteDuration(Configuration.Core.Airline.flightQueryTimeout, SECONDS)))
 
       Behaviors.receiveMessage {
         case AggregatedFlights(flights, replyTo) =>
