@@ -40,6 +40,8 @@ object Configuration {
 
       val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.ticket-reservation.minDelay")
       val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.ticket-reservation.maxDelay")
+      val clientCancelReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.reservation-cancelling.minDelay")
+      val clientCancelReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.reservation-cancelling.maxDelay")
 
       val flight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.standard.flight.initial.minCount"),
@@ -65,6 +67,8 @@ object Configuration {
 
       val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.ticket-reservation.minDelay")
       val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.ticket-reservation.maxDelay")
+      val clientCancelReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.reservation-cancelling.minDelay")
+      val clientCancelReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.reservation-cancelling.maxDelay")
 
       val standardFlight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.delayed.flight.standard.initial.minCount"),
@@ -100,6 +104,8 @@ object Configuration {
 
       val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.ticket-reservation.minDelay")
       val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.ticket-reservation.maxDelay")
+      val clientCancelReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.reservation-cancelling.minDelay")
+      val clientCancelReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.reservation-cancelling.maxDelay")
 
       val standardFlight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.initial.minCount"),

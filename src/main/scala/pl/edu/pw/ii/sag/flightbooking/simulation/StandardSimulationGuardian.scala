@@ -64,4 +64,10 @@ class StandardSimulationGuardian(initialAgentCount: InitialAgentCount) extends A
       Configuration.Simulation.Standard.clientTicketReservationSchedulerMinDelay,
       Configuration.Simulation.Standard.clientTicketReservationSchedulerMaxDelay)
   }
+
+  override def initializeClientCancelRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit = {
+    clientManager ! ClientManager.InitClientsReservationCancellingScheduler(
+      Configuration.Simulation.Standard.clientCancelReservationSchedulerMinDelay,
+      Configuration.Simulation.Standard.clientCancelReservationSchedulerMaxDelay)
+  }
 }

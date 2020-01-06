@@ -113,6 +113,8 @@ abstract class AbstractSimulationGuardian(val initialAgentCount: InitialAgentCou
       case ClientGenerator.ClientGenerationCompleted(clientIds) if clientIds.size == initialAgentCount.client =>
         context.log.info("Initiating client schedulers for ticket reservation")
         initializeClientRequestScheduler(clientManager)
+        context.log.info("Initiating client schedulers for reservation cancelling")
+        initializeClientCancelRequestScheduler(clientManager)
         Behaviors.same
       case ClientGenerator.ClientGenerationCompleted(_) =>
         context.log.error("Clients count does not match expected clients count")
@@ -143,4 +145,5 @@ abstract class AbstractSimulationGuardian(val initialAgentCount: InitialAgentCou
 
   protected def initializeClientRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit
 
+  protected def initializeClientCancelRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit
 }

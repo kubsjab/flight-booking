@@ -72,4 +72,10 @@ class OverbookingSimulationGuardian(initialAgentCount: InitialAgentCount) extend
       Configuration.Simulation.Overbooking.clientTicketReservationSchedulerMinDelay,
       Configuration.Simulation.Overbooking.clientTicketReservationSchedulerMaxDelay)
   }
+
+  override def initializeClientCancelRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit = {
+    clientManager ! ClientManager.InitClientsReservationCancellingScheduler(
+      Configuration.Simulation.Overbooking.clientCancelReservationSchedulerMinDelay,
+      Configuration.Simulation.Overbooking.clientCancelReservationSchedulerMaxDelay)
+  }
 }

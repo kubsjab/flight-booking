@@ -32,6 +32,7 @@ object Client {
   final case class StartTicketReservation() extends Command
   final case class StartTicketCancelling() extends Command
   final case class InitScheduledTicketReservation(scheduledCmd: StartTicketReservation, delay: FiniteDuration) extends Command
+  final case class InitScheduledReservationCancelling(scheduledCmd: StartTicketCancelling, delay: FiniteDuration) extends Command
 
   private final case class WrappedBookingOperationResult(response: Broker.BookingOperationResult) extends Command
   private final case class WrappedCancelingOperationResult(response: Broker.CancelBookingOperationResult) extends Command
@@ -61,7 +62,8 @@ object Client {
                         ) extends CborSerializable {
   }
 
-  private case object TimerKey
+  private case object TimerKeyReservation
+  private case object TimerKeyCancelling
 
   def buildId(customId: String): String = s"$TAG-$customId"
 
@@ -94,7 +96,8 @@ object Client {
         case CancellingFailedResult(exception, requestId) => handleCancellingFailedResult(context, exception, requestId): Effect[Event, State]
         case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
         case c: RemoveBroker => brokerTerminated(c)
-        case InitScheduledTicketReservation(scheduledCmd, delay) => scheduledTicketReservation(context, timers, scheduledCmd, delay)
+        case InitScheduledTicketReservation(scheduledCmd, delay) => initScheduledReservationCommand(context, timers, scheduledCmd, delay)
+        case InitScheduledReservationCancelling(scheduledCmd, delay) => initScheduledReservationCancellingCommand(context, timers, scheduledCmd, delay)
         case _ => Effect.none
       }
   }
@@ -297,12 +300,22 @@ object Client {
     Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
   }
 
-  private def scheduledTicketReservation(context: ActorContext[Command],
+  private def initScheduledReservationCommand(context: ActorContext[Command],
                                          timers: TimerScheduler[Command],
                                          cmd: StartTicketReservation,
                                          delay: FiniteDuration): Effect[Event, State] = {
-    if (!timers.isTimerActive(TimerKey)){
-      timers.startTimerWithFixedDelay(TimerKey, cmd, delay)
+    if (!timers.isTimerActive(TimerKeyReservation)){
+      timers.startTimerWithFixedDelay(TimerKeyReservation, cmd, delay)
+    }
+    Effect.none
+  }
+
+  private def initScheduledReservationCancellingCommand(context: ActorContext[Command],
+                                                        timers: TimerScheduler[Command],
+                                                        cmd: StartTicketCancelling,
+                                                        delay: FiniteDuration): Effect[Event, State] = {
+    if (!timers.isTimerActive(TimerKeyCancelling)){
+      timers.startTimerWithFixedDelay(TimerKeyCancelling, cmd, delay)
     }
     Effect.none
   }
