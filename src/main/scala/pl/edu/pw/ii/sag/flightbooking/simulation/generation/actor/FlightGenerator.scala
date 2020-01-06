@@ -19,31 +19,22 @@ object FlightGenerator {
   sealed trait Command extends CborSerializable
 
   sealed trait GenerateFlights extends Command
-
   final case class GenerateStandardFlights(airlineIds: Set[String], minCount: Int, maxCount: Int) extends GenerateFlights
-
   final case class GenerateDelayedFlights(airlineIds: Set[String], minCount: Int, maxCount: Int) extends GenerateFlights
-
   final case class GenerateOverbookingFlights(airlineIds: Set[String], minCount: Int, maxCount: Int) extends GenerateFlights
 
   final case class InitScheduledStandardFlightsGeneration(scheduledCmd: GenerateStandardFlights, delay: FiniteDuration) extends Command
-
   final case class InitScheduledDelayedFlightsGeneration(scheduledCmd: GenerateDelayedFlights, delay: FiniteDuration) extends Command
-
   final case class InitScheduledOverbookingFlightsGeneration(scheduledCmd: GenerateOverbookingFlights, delay: FiniteDuration) extends Command
 
   private final case class GenerateFlightsForAirline(simulationType: SimulationType, airline: ActorRef[Airline.Command], minCount: Int, maxCount: Int) extends Command
 
   private final case class WrappedAirlineResponse(response: Airline.OperationResult) extends Command
-
   private final case class AdaptedAirlineManagerFailure(msg: String) extends Command
 
   private trait TimerKey
-
   private case object StandardFlightTimerKey extends TimerKey
-
   private case object DelayedFlightTimerKey extends TimerKey
-
   private case object OverbookingFlightTimerKey extends TimerKey
 
   def apply(airlineManager: ActorRef[AirlineManager.Command]): Behavior[Command] = Behaviors.withTimers(timers =>
@@ -57,7 +48,7 @@ object FlightGenerator {
         case cmd: InitScheduledDelayedFlightsGeneration => scheduledFlightGeneration(context, timers, cmd.scheduledCmd, cmd.delay, DelayedFlightTimerKey)
         case cmd: InitScheduledOverbookingFlightsGeneration => scheduledFlightGeneration(context, timers, cmd.scheduledCmd, cmd.delay, OverbookingFlightTimerKey)
         case cmd: GenerateFlightsForAirline => generateFlightsForAirline(cmd, airlineResponseWrapper)
-        case cmd: WrappedAirlineResponse => airlineMessageFailure(context, cmd)
+        case cmd: WrappedAirlineResponse => handleAirlineResponse(context, cmd)
         case cmd: AdaptedAirlineManagerFailure => airlineManagerMessageFailure(context, cmd)
         case _ => Behaviors.same
       }
@@ -123,7 +114,7 @@ object FlightGenerator {
   }
 
 
-  private def airlineMessageFailure(context: ActorContext[Command], wrappedResponse: WrappedAirlineResponse): Behavior[Command] = {
+  private def handleAirlineResponse(context: ActorContext[Command], wrappedResponse: WrappedAirlineResponse): Behavior[Command] = {
     wrappedResponse.response match {
       case Airline.FlightCreationConfirmed(airlineId) => context.log.debug(s"Flight - [${airlineId}] creation has been confirmed")
       case Airline.Rejected(reason) => context.log.warn(s"Airline creation has been rejected. Reason: $reason")

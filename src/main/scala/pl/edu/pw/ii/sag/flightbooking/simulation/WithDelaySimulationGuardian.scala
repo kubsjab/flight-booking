@@ -36,7 +36,7 @@ class WithDelaySimulationGuardian(initialAgentCount: InitialAgentCount) extends 
         FiniteDuration(config.standardFlight.schedulerDelay, duration.SECONDS)
       )
     }
-    if (config.standardFlight.schedulerEnabled) {
+    if (config.delayedFlight.schedulerEnabled) {
       flightGenerator ! FlightGenerator.InitScheduledDelayedFlightsGeneration(
         FlightGenerator.GenerateDelayedFlights(airlineIds, config.delayedFlight.schedulerMinCount, config.delayedFlight.schedulerMaxCount),
         FiniteDuration(config.delayedFlight.schedulerDelay, duration.SECONDS)
