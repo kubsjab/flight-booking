@@ -162,7 +162,7 @@ object Client {
         context.log.info(s"Reservation failed, broker returned internal timeout")
         Effect.persist(BookingFailed(requestId, "Broker returned internal timeout"))
       case Broker.BookingAccepted(bookingId, requestId) =>
-        context.log.info(s"Reservation completed succesfully, id : [$bookingId]")
+        context.log.info(s"Reservation completed successfully, bookingId : [$bookingId]")
         Effect.persist(BookingAccepted(requestId, bookingId))
       case Broker.BookingRejected(reason, requestId) =>
         context.log.info(s"Reservation rejected, reason: $reason")

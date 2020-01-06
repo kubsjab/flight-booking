@@ -31,6 +31,8 @@ object AirlineFlightsQuery {
             airlineFlights
               .map(c => c.flights)
               .filter(_.nonEmpty)
+              .map(flights => flights.filter(details => !details.isFull))
+              .filter(_.nonEmpty)
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,
             replyToWhenCompleted),
@@ -54,6 +56,8 @@ object AirlineFlightsQuery {
           aggregateReplies = airlineFlights => AggregatedAirlineFlights(
             airlineFlights
               .map(c => c.flights)
+              .filter(_.nonEmpty)
+              .map(flights => flights.filter(details => !details.isFull))
               .filter(_.nonEmpty)
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,
@@ -79,6 +83,8 @@ object AirlineFlightsQuery {
           aggregateReplies = airlineFlights => AggregatedAirlineFlights(
             airlineFlights
               .map(c => c.flights)
+              .filter(_.nonEmpty)
+              .map(flights => flights.filter(details => !details.isFull))
               .filter(_.nonEmpty)
               .map(flights => flights.head.flightInfo.airlineId -> flights)
               .toMap,

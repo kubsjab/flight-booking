@@ -21,6 +21,7 @@ object FlightBookingStrategyType extends Enumeration {
 
 case class FlightDetails(flightInfo: FlightInfo, open: Boolean, seatReservations: Map[String, Boolean]) {
   def flightId: String = flightInfo.flightId
+  def isFull: Boolean = !seatReservations.view.exists(_._2 == false)
 }
 
 case class FlightInfo(flightId: String,
