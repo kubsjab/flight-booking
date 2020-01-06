@@ -102,8 +102,8 @@ object ClientGenerator {
       Aggregator[ClientManager.OperationResult, AggregatedClients](
         sendRequests = { replyTo =>
           (1 to count).foreach(i => {
-            val indices = Random.shuffle(0 to (brokerIds.size)-1).toList
-              .take(minBrokersInClientCount + Random.nextInt(maxBrokersInClientCount-minBrokersInClientCount))
+            val indices = Random.shuffle((0 until brokerIds.size).toList)
+              .take(minBrokersInClientCount + Random.nextInt(1 + maxBrokersInClientCount - minBrokersInClientCount))
             val brokerIdsForClient: Set[String] = indices.map(brokerIds.toList).toSet
             val brokerRefsForClient = brokerRefs.filter(entry => brokerIdsForClient.contains(entry._1))
             clientManager ! ClientManager.CreateClient(ClientData(Client.buildId(i.toString), s"Client-$i", brokerIdsForClient), brokerRefsForClient, replyTo)

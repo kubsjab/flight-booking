@@ -105,8 +105,8 @@ object BrokerGenerator {
       Aggregator[BrokerManager.OperationResult, AggregatedBrokers](
         sendRequests = { replyTo =>
           (1 to count).foreach(i => {
-            val indices = Random.shuffle(0 to (airlineIds.size)-1).toList
-              .take(minAirlinesInBrokerCount + Random.nextInt(maxAirlinesInBrokerCount-minAirlinesInBrokerCount))
+            val indices = Random.shuffle((0 until airlineIds.size).toList)
+              .take(minAirlinesInBrokerCount + Random.nextInt(1 + maxAirlinesInBrokerCount - minAirlinesInBrokerCount))
             val airlineIdsForBroker: Set[String] = indices.map(airlineIds.toList).toSet
             val airlineRefsForBroker = airlineRefs.filter(entry => airlineIdsForBroker.contains(entry._1))
             brokerManager ! BrokerManager.CreateBroker(BrokerData(Broker.buildId(i.toString), s"Broker-$i", airlineIdsForBroker), airlineRefsForBroker, replyTo)
