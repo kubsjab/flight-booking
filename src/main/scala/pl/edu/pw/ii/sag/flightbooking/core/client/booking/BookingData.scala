@@ -9,7 +9,7 @@ object BookingStatus extends Enumeration {
 }
 
 object BookingData {
-  def apply(id: Int, brokerId: String, flightInfo: FlightInfo, seat: String): BookingData = new BookingData(id, brokerId, flightInfo, seat, BookingStatus.NEW, null)
+  def apply(id: Int, brokerId: String, flightInfo: FlightInfo, seat: String): BookingData = new BookingData(id, brokerId, flightInfo, seat, BookingStatus.NEW, null, null)
 }
 
 case class BookingData(
@@ -18,17 +18,22 @@ case class BookingData(
                         flightInfo: FlightInfo,
                         seat: String,
                         bookingStatus: BookingStatus,
-                        additionalData: String
+                        bookingId: String,
+                        additionalMessage: String
                       ) {
   def accepted(bookingId: String): BookingData = {
-    BookingData(id, brokerId, flightInfo, seat, BookingStatus.CONFIRMED, bookingId)
+    BookingData(id, brokerId, flightInfo, seat, BookingStatus.CONFIRMED, bookingId, additionalMessage)
   }
 
   def rejected(reason: String): BookingData = {
-    BookingData(id, brokerId, flightInfo, seat, BookingStatus.REJECTED, reason)
+    BookingData(id, brokerId, flightInfo, seat, BookingStatus.REJECTED, null, reason)
   }
 
   def cancelled(): BookingData = {
-    BookingData(id, brokerId, flightInfo, seat, BookingStatus.CANCELLED, null)
+    BookingData(id, brokerId, flightInfo, seat, BookingStatus.CANCELLED, bookingId, additionalMessage)
+  }
+
+  def withMessage(message: String): BookingData = {
+    BookingData(id, brokerId, flightInfo, seat, BookingStatus.CANCELLED, bookingId, message)
   }
 }

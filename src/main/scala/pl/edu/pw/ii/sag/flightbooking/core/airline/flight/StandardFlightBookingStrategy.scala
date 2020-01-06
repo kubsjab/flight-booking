@@ -31,16 +31,16 @@ class StandardFlightBookingStrategy(behaviourProvider: ReplyBehaviourProvider) e
   override protected def cancelBooking(context: ActorContext[Flight.Command], flightState: OpenedFlight, cmd: CancelBooking): ReplyEffect[Event, State] = {
     if (!flightState.isFlightIdValid(cmd.flightId)) {
       context.log.warn(s"Provided flightId is invalid: [${cmd.flightId}]")
-      return behaviourProvider.reply(cmd.replyTo, CancelBookingRejected("Invalid flightId"))
+      return behaviourProvider.reply(cmd.replyTo, CancelBookingRejected("Invalid flightId", cmd.requestId))
     }
     val bookedEntry = flightState.getSeatEntryByBookingId(cmd.bookingId)
     if (bookedEntry.isEmpty) {
       context.log.warn(s"Failed to cancel booking with id ${cmd.bookingId} as it does not exist")
-      behaviourProvider.reply(cmd.replyTo, CancelBookingRejected(s"Booking with id ${cmd.bookingId} does not exist"))
+      behaviourProvider.reply(cmd.replyTo, CancelBookingRejected(s"Booking with id ${cmd.bookingId} does not exist", cmd.requestId))
     }
     else {
       context.log.info(s"Cancelling booking with id ${cmd.bookingId}")
-      behaviourProvider.persistAndReply(BookingCancelled(bookedEntry.get._1, bookedEntry.get._2), cmd.replyTo, CancelBookingAccepted())
+      behaviourProvider.persistAndReply(BookingCancelled(bookedEntry.get._1, bookedEntry.get._2), cmd.replyTo, CancelBookingAccepted(cmd.requestId))
     }
   }
 

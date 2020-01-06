@@ -23,7 +23,7 @@ abstract class FlightBookingStrategy(val behaviourProvider: ReplyBehaviourProvid
           cmd match {
             case c: GetFlightDetails => getFlightDetails(context, state, c)
             case c: Book => behaviourProvider.reply(c.replyTo, BookingRejected("Can't book a seat to an already closed flight", c.requestId))
-            case c: CancelBooking => behaviourProvider.reply(c.replyTo, CancelBookingRejected("Can't cancel booking of a seat from an already closed flight"))
+            case c: CancelBooking => behaviourProvider.reply(c.replyTo, CancelBookingRejected("Can't cancel booking of a seat from an already closed flight", c.requestId))
             case _: CloseFlight => behaviourProvider.unhandledWithNoReply()
           }
       }

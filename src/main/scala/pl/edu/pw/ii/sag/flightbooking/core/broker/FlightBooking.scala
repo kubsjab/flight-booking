@@ -65,34 +65,35 @@ object FlightBooking {
   def cancelFlightBooking(airline: ActorRef[Airline.Command],
                           flightId: String,
                           bookingId: String,
-                          replyTo: ActorRef[Broker.CancelBookingOperationResult]): Behavior[Command] =
+                          replyTo: ActorRef[Broker.CancelBookingOperationResult],
+                          requestId: Int): Behavior[Command] =
     Behaviors.setup[Command] { context =>
       implicit val timeout: Timeout = FiniteDuration(Configuration.Core.Broker.cancelBookingTimeout, SECONDS)
 
-      context.ask(airline, (ref: ActorRef[Flight.CancelBookingOperationResult]) => Airline.CancelFlightBooking(flightId, bookingId, ref)) {
+      context.ask(airline, (ref: ActorRef[Flight.CancelBookingOperationResult]) => Airline.CancelFlightBooking(flightId, bookingId, ref, requestId)) {
         case Success(rsp) => WrappedCancelBookingOperationResult(rsp)
-        case Failure(ex) => FailedResult(ex, 0) //FIXME handle request id in cancel action
+        case Failure(ex) => FailedResult(ex, requestId)
       }
 
       Behaviors.receiveMessage {
         case WrappedCancelBookingOperationResult(rsp) => handleCancelBookingOperationResult(rsp, replyTo)
-        case FailedResult(ex, requestId) => handleCancelBookingFailedResult(ex, replyTo)
+        case FailedResult(ex, requestId) => handleCancelBookingFailedResult(ex, replyTo, requestId)
         case _ => Behaviors.same
       }
     }
 
   private def handleCancelBookingOperationResult(response: Flight.CancelBookingOperationResult, replyTo: ActorRef[Broker.CancelBookingOperationResult]): Behavior[Command] = {
     response match {
-      case Flight.CancelBookingAccepted() => replyTo ! Broker.CancelBookingAccepted()
-      case Flight.CancelBookingRejected(reason) => replyTo ! Broker.CancelBookingRejected(reason)
+      case Flight.CancelBookingAccepted(requestId) => replyTo ! Broker.CancelBookingAccepted(requestId)
+      case Flight.CancelBookingRejected(reason, requestId) => replyTo ! Broker.CancelBookingRejected(reason, requestId)
     }
     Behaviors.stopped
   }
 
-  private def handleCancelBookingFailedResult(exception: Throwable, replyTo: ActorRef[Broker.CancelBookingOperationResult]): Behavior[Command] = {
+  private def handleCancelBookingFailedResult(exception: Throwable, replyTo: ActorRef[Broker.CancelBookingOperationResult], requestId: Int): Behavior[Command] = {
     exception match {
       case _: TimeoutException => replyTo ! Broker.Timeout(0)
-      case _ => replyTo ! Broker.CancelBookingRejected(exception.getMessage)
+      case _ => replyTo ! Broker.CancelBookingRejected(exception.getMessage, requestId)
     }
     Behaviors.stopped
   }

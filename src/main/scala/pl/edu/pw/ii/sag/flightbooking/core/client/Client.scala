@@ -9,7 +9,7 @@ import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
-import pl.edu.pw.ii.sag.flightbooking.core.client.booking.BookingData
+import pl.edu.pw.ii.sag.flightbooking.core.client.booking.{BookingData, BookingStatus}
 import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
@@ -30,27 +30,26 @@ object Client {
   private final case class RemoveBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
 
   final case class StartTicketReservation() extends Command
+  final case class StartTicketCancelling() extends Command
+
   private final case class WrappedBookingOperationResult(response: Broker.BookingOperationResult) extends Command
-
+  private final case class WrappedCancelingOperationResult(response: Broker.CancelBookingOperationResult) extends Command
   private final case class WrappedAggregatedBrokerFlights(response: BrokerFlightsQuery.AggregatedBrokerFlights) extends Command
-
   private final case class BookingFailedResult(exception: Throwable, requestId: Int) extends Command
+  private final case class CancellingFailedResult(exception: Throwable, requestId: Int) extends Command
 
   // event
   sealed trait Event extends CborSerializable
   final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
   private final case class TicketReservationStarted(bookingData: BookingData) extends Event
   private final case class BookingAccepted(requestId: Int, bookingId: String) extends Event
-
   private final case class BookingRejected(requestId: Int, reason: String) extends Event
-
   private final case class BookingFailed(requestId: Int, reason: String) extends Event
 
-  // reply
-  sealed trait CommandReply extends CborSerializable
-  sealed trait OperationResult extends CommandReply
-  final case class Accepted() extends OperationResult
-  final case class Rejected(reason: String) extends OperationResult
+  private final case class TicketCancellingStarted(bookingData: BookingData) extends Event
+  private final case class CancelBookingAccepted(requestId: Int) extends Event
+  private final case class CancelBookingRejected(requestId: Int, reason: String) extends Event
+  private final case class CancelBookingFailed(requestId: Int, reason: String) extends Event
 
   //state
   final case class State(
@@ -86,8 +85,11 @@ object Client {
     (state, cmd) =>
       cmd match {
         case StartTicketReservation() => findAvailableFlights(context, state)
+        case StartTicketCancelling() => startTicketCancellation(context, state)
         case WrappedBookingOperationResult(response) => handleBookingResponse(context, response): Effect[Event, State]
         case BookingFailedResult(exception, requestId) => handleBookingFailedResult(context, exception, requestId): Effect[Event, State]
+        case WrappedCancelingOperationResult(response) => handleCancellingResponse(context, response): Effect[Event, State]
+        case CancellingFailedResult(exception, requestId) => handleCancellingFailedResult(context, exception, requestId): Effect[Event, State]
         case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
         case c: RemoveBroker => brokerTerminated(c)
         case _ => Effect.none
@@ -103,24 +105,38 @@ object Client {
 
       case TicketReservationStarted(bookingData) =>
         state.copy(bookingRequests = state.bookingRequests.updated(bookingData.id, bookingData), nextRequestId = state.nextRequestId + 1)
-
       case BookingAccepted(requestId, bookingId) =>
         val updatedBookingRequests = state.bookingRequests.get(requestId) match {
           case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.accepted(bookingId))
         }
         state.copy(bookingRequests = updatedBookingRequests)
-
       case BookingRejected(requestId, reason) =>
         rejectBooking(state, requestId, reason)
-
       case BookingFailed(requestId, reason) =>
         rejectBooking(state, requestId, reason)
+      case CancelBookingAccepted(requestId) =>
+        val updatedBookingRequests = state.bookingRequests.get(requestId) match {
+          case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.cancelled())
+        }
+        state.copy(bookingRequests = updatedBookingRequests)
+      case CancelBookingRejected(requestId, message) =>
+        saveCancelAttempt(state, requestId, message)
+      case CancelBookingFailed(requestId, message) =>
+        saveCancelAttempt(state, requestId, message)
+      case _ => state
     }
   }
 
   private def rejectBooking(state: State, requestId: Int, reason: String) = {
     val updatedBookingRequests = state.bookingRequests.get(requestId) match {
       case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.rejected(reason))
+    }
+    state.copy(bookingRequests = updatedBookingRequests)
+  }
+
+  private def saveCancelAttempt(state: State, requestId: Int, reason: String) = {
+    val updatedBookingRequests = state.bookingRequests.get(requestId) match {
+      case Some(bookingData) => state.bookingRequests + (requestId -> bookingData.withMessage(reason))
     }
     state.copy(bookingRequests = updatedBookingRequests)
   }
@@ -136,7 +152,6 @@ object Client {
     val randomFlight = availableFlights.apply(Random.nextInt(availableFlights.length))
     bookTicket(context, state, randomFlight._1, randomFlight._2)
   }
-
 
   def handleBookingResponse(context: ActorContext[Command], response: Broker.BookingOperationResult): Effect[Event, State] = {
     response match {
@@ -156,6 +171,24 @@ object Client {
     }
   }
 
+  def handleCancellingResponse(context: ActorContext[Command], response: Broker.CancelBookingOperationResult): Effect[Event, State] = {
+    response match {
+      case Broker.GeneralSystemFailure(reason, requestId) =>
+        context.log.info(s"Cancelling failed, broker returned failure")
+        Effect.persist(CancelBookingFailed(requestId, reason))
+      case Broker.Timeout(requestId) =>
+        context.log.info(s"Cancelling failed, broker returned internal timeout")
+        Effect.persist(CancelBookingFailed(requestId, "Broker returned internal timeout"))
+      case Broker.CancelBookingAccepted(requestId) =>
+        context.log.info(s"Cancelling completed succesfully")
+        Effect.persist(CancelBookingAccepted(requestId))
+      case Broker.CancelBookingRejected(reason, requestId) =>
+        context.log.info(s"Cancelling rejected, reason: $reason")
+        Effect.persist(CancelBookingRejected(requestId, reason))
+      case _ => Effect.none
+    }
+  }
+
   private def handleBookingFailedResult(context: ActorContext[Command], exception: Throwable, requestId: Int): Effect[Event, State] = {
     exception match {
       case _: TimeoutException =>
@@ -167,6 +200,16 @@ object Client {
     }
   }
 
+  private def handleCancellingFailedResult(context: ActorContext[Command], exception: Throwable, requestId: Int): Effect[Event, State] = {
+    exception match {
+      case _: TimeoutException =>
+        context.log.info(s"Cancelling failed, broker timed out")
+        Effect.persist(CancelBookingFailed(requestId, "Broker timeout"))
+      case _ =>
+        context.log.info(s"Cancelling failed, exception occured")
+        Effect.persist(CancelBookingFailed(requestId, exception.getMessage))
+    }
+  }
 
   def findAvailableFlights(context: ActorContext[Command], state: State): Effect[Event, State] = {
     val queryResponseWrapper: ActorRef[BrokerFlightsQuery.AggregatedBrokerFlights] = context.messageAdapter(rsp => WrappedAggregatedBrokerFlights(rsp))
@@ -205,6 +248,46 @@ object Client {
         .filter(_._2 == false)
 
     availableSeats.apply(Random.nextInt(availableSeats.length))._1
+  }
+
+  private def startTicketCancellation(context: ActorContext[Command], state: State): Effect[Event, State] = {
+    getRandomReservation(context, state) match {
+      case Some(bookingData) => cancelTicket(context, state, bookingData)
+      case None => Effect.none
+    }
+
+  }
+
+  private def cancelTicket(context: ActorContext[Command], state: State, bookingData: BookingData): Effect[Event, State] = {
+    val broker = state.brokerActors(bookingData.brokerId)
+    implicit val timeout: akka.util.Timeout = FiniteDuration(Configuration.Core.Client.cancelBookingTimeout, SECONDS)
+    Effect.persist(TicketCancellingStarted(bookingData))
+      .thenRun(_ =>
+        context.ask(broker, (ref: ActorRef[Broker.CancelBookingOperationResult]) =>
+          Broker.CancelFlightBooking(
+            bookingData.flightInfo.airlineId,
+            bookingData.flightInfo.flightId,
+            bookingData.bookingId,
+            ref,
+            bookingData.id
+          )
+        ) {
+          case Success(rsp) => WrappedCancelingOperationResult(rsp)
+          case Failure(ex) => BookingFailedResult(ex, bookingData.id)
+        }
+      )
+  }
+
+  private def getRandomReservation(context: ActorContext[Command], state: State): Option[BookingData] = {
+    val confirmedReservations = state.bookingRequests
+      .values
+      .filter(_.bookingStatus == BookingStatus.CONFIRMED)
+
+    if (confirmedReservations.isEmpty) {
+      context.log.info("No confirmed reservations. Cancel request ignored")
+      return None
+    }
+    Some(confirmedReservations.toList.apply(Random.nextInt(confirmedReservations.toList.length)))
   }
 
   private def brokerTerminated(cmd: RemoveBroker): Effect[Event, State] = {

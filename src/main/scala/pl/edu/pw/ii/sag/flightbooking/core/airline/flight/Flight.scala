@@ -41,7 +41,7 @@ object Flight {
 
   final case class Book(flightId: String, seatId: String, customer: Customer, replyTo: ActorRef[BookingOperationResult], requestId: Int) extends Command
 
-  final case class CancelBooking(flightId: String, bookingId: String, replyTo: ActorRef[CancelBookingOperationResult]) extends Command
+  final case class CancelBooking(flightId: String, bookingId: String, replyTo: ActorRef[CancelBookingOperationResult], requestId: Int) extends Command
   final case class CloseFlight(flightId: String, replyTo: ActorRef[CloseFlightOperationResult]) extends Command
 
   // event
@@ -58,8 +58,8 @@ object Flight {
   final case class BookingRejected(reason: String, requestId: Int) extends BookingOperationResult
 
   sealed trait CancelBookingOperationResult extends CommandReply
-  final case class CancelBookingAccepted() extends CancelBookingOperationResult
-  final case class CancelBookingRejected(reason: String) extends CancelBookingOperationResult
+  final case class CancelBookingAccepted(requestId: Int) extends CancelBookingOperationResult
+  final case class CancelBookingRejected(reason: String, requestId: Int) extends CancelBookingOperationResult
 
   sealed trait CloseFlightOperationResult extends CommandReply
   final case class CloseFlightAccepted() extends CloseFlightOperationResult
