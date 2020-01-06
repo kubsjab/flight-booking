@@ -41,7 +41,8 @@ abstract class FlightBookingStrategy(val behaviourProvider: ReplyBehaviourProvid
         FlightDetails(
           flightState.flightInfo,
           flightState.isInstanceOf[OpenedFlight],
-          flightState.seatReservations.map { case (k, v) => (k, v.isDefined) }
+          flightState.seatReservations.map(entry => entry._1 -> entry._2.isDefined)
+//          flightState.seatReservations.map { case (k, v) => (k, v.isDefined) }
         )
       )
     )

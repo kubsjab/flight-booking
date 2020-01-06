@@ -53,10 +53,10 @@ object Configuration {
       )
 
 
-      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
-      val maxAirlinesInBrokerCount: Int = airlinesCount
-      val minBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
-      val maxBrokersInClientCount: Int = brokersCount
+      val minAirlinesInBrokerCount: Int = 1
+      val maxAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
+      val minBrokersInClientCount: Int = 1
+      val maxBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
 
     }
 
@@ -90,10 +90,10 @@ object Configuration {
         maxDelay = configuration.getInt("configuration.simulation.delayed.flight.delayed.maxDelay")
       )
 
-      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
-      val maxAirlinesInBrokerCount: Int = airlinesCount
-      val minBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
-      val maxBrokersInClientCount: Int = brokersCount
+      val minAirlinesInBrokerCount: Int = 1
+      val maxAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
+      val minBrokersInClientCount: Int = 1
+      val maxBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
 
     }
 
@@ -125,10 +125,10 @@ object Configuration {
         schedulerMaxCount = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.scheduler.maxCount")
       )
 
-      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
-      val maxAirlinesInBrokerCount: Int = airlinesCount
-      val minBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
-      val maxBrokersInClientCount: Int = brokersCount
+      val minAirlinesInBrokerCount: Int = 1
+      val maxAirlinesInBrokerCount: Int = Math.max(airlinesCount / 2, 1)
+      val minBrokersInClientCount: Int = 1
+      val maxBrokersInClientCount: Int = Math.max(brokersCount / 5, 1)
 
     }
   }
