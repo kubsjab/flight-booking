@@ -118,7 +118,7 @@ object ClientGenerator {
               .map(x => x.asInstanceOf[ClientManager.ClientCreationConfirmed].clientId)
               .toSet,
             replyToWhenCompleted),
-        timeout = 5.seconds))
+        timeout = 30.seconds))
     Behaviors.same
   }
 

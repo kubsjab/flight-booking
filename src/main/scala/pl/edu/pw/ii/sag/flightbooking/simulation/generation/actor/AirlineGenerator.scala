@@ -52,7 +52,7 @@ object AirlineGenerator {
               .map(x => x.asInstanceOf[AirlineManager.AirlineCreationConfirmed].airlineId)
               .toSet,
             replyToWhenCompleted),
-        timeout = 5.seconds))
+        timeout = 30.seconds))
     Behaviors.same
   }
 
