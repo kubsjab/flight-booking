@@ -34,6 +34,8 @@ BEGIN
     RETURN (substring(
             substring(encoded_msg for length(encoded_msg) - position('}' in reverse(encoded_msg)) + 1)
             from position('{' in encoded_msg)))::json;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
 END;$$
     LANGUAGE PLPGSQL;
 
@@ -45,8 +47,11 @@ BEGIN
     RETURN (substring(
             substring(encoded_msg for length(encoded_msg) - position('}' in reverse(encoded_msg)) + 1)
             from position('{' in encoded_msg)))::jsonb;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
 END;$$
     LANGUAGE PLPGSQL;
+
 
 
 -- MATERIALIZED VIEWS
@@ -55,7 +60,7 @@ END;$$
 
 -- Contains information about creating clients, airlines and brokers.
 -- To refresh run:
---     REFRESH MATERIALIZED VIEW CONCURRENTLY managers_view;
+--     REFRESH MATERIALIZED VIEW managers_view;
 
 DROP MATERIALIZED VIEW IF EXISTS managers_view;
 
@@ -86,7 +91,7 @@ WITH DATA;
 -- Contains information about bookings. It contains data for all flights and all flight-booking events like
 -- ticket booked, booking cancelled or overbooked.
 -- To refresh run:
---     REFRESH MATERIALIZED VIEW CONCURRENTLY bookings_view;
+--     REFRESH MATERIALIZED VIEW bookings_view;
 
 DROP MATERIALIZED VIEW IF EXISTS bookings_view;
 
@@ -120,7 +125,7 @@ WITH DATA;
 
 -- Contains information about clients and their requests.
 -- To refresh run:
---     REFRESH MATERIALIZED VIEW CONCURRENTLY clients_view;
+--     REFRESH MATERIALIZED VIEW clients_view;
 
 DROP MATERIALIZED VIEW IF EXISTS clients_view;
 
