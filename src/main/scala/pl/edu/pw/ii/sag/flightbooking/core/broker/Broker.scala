@@ -50,8 +50,9 @@ object Broker {
   final case class CancelBookingRejected(reason: String) extends CancelBookingFailed
 
   sealed trait SystemFailure extends CommandReply with BookingOperationResult with CancelBookingOperationResult
-  final case class Timeout() extends SystemFailure
-  final case class GeneralSystemFailure(reason: String) extends SystemFailure
+  final case class Timeout(requestId: Int) extends SystemFailure
+
+  final case class GeneralSystemFailure(reason: String, requestId: Int) extends SystemFailure
 
   final case class AirlineFlightDetailsCollection(airlineFlights: Map[String, Seq[FlightDetails]], brokerId: String) extends CommandReply
 
@@ -106,7 +107,7 @@ object Broker {
       case Some(airline) =>
         context.spawnAnonymous(FlightBooking.bookFlight(airline, cmd.flightId, cmd.seatId, cmd.customer, cmd.requestedDate, cmd.replyTo, cmd.requestId))
       case None =>
-        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]")
+        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]", cmd.requestId)
     }
     Effect.none
   }
@@ -116,7 +117,7 @@ object Broker {
       case Some(airline) =>
         context.spawnAnonymous(FlightBooking.cancelFlightBooking(airline, cmd.flightId, cmd.bookingId, cmd.replyTo))
       case None =>
-        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]")
+        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]", 0) //TODO add requestId
     }
     Effect.none
   }

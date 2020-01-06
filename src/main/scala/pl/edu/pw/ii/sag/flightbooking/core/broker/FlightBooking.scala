@@ -56,7 +56,7 @@ object FlightBooking {
 
   private def handleBookingFailedResult(exception: Throwable, replyTo: ActorRef[Broker.BookingOperationResult], requestId: Int): Behavior[Command] = {
     exception match {
-      case _: TimeoutException => replyTo ! Broker.Timeout()
+      case _: TimeoutException => replyTo ! Broker.Timeout(requestId)
       case _ => replyTo ! Broker.BookingRejected(exception.getMessage, requestId)
     }
     Behaviors.stopped
@@ -91,7 +91,7 @@ object FlightBooking {
 
   private def handleCancelBookingFailedResult(exception: Throwable, replyTo: ActorRef[Broker.CancelBookingOperationResult]): Behavior[Command] = {
     exception match {
-      case _: TimeoutException => replyTo ! Broker.Timeout()
+      case _: TimeoutException => replyTo ! Broker.Timeout(0)
       case _ => replyTo ! Broker.CancelBookingRejected(exception.getMessage)
     }
     Behaviors.stopped

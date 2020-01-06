@@ -18,8 +18,8 @@ object Configuration {
     }
 
     object Client {
+      val bookingTimeout = configuration.getInt("configuration.core.client.booking-timeout")
       val flightQueryTimeout = configuration.getInt("configuration.core.client.flight-query-timeout")
-      val bookingTimeout: Int = configuration.getInt("configuration.core.broker.booking-timeout")
       val cancelBookingTimeout: Int = configuration.getInt("configuration.core.broker.cancel-booking-timeout")
     }
 
