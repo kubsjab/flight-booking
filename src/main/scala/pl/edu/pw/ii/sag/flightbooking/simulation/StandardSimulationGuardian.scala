@@ -2,6 +2,7 @@ package pl.edu.pw.ii.sag.flightbooking.simulation
 
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.{ActorRef, Behavior}
+import pl.edu.pw.ii.sag.flightbooking.core.client.ClientManager
 import pl.edu.pw.ii.sag.flightbooking.core.configuration.Configuration
 import pl.edu.pw.ii.sag.flightbooking.simulation.SimulationType.SimulationType
 import pl.edu.pw.ii.sag.flightbooking.simulation.generation.actor.{AirlineGenerator, BrokerGenerator, ClientGenerator, FlightGenerator}
@@ -56,5 +57,11 @@ class StandardSimulationGuardian(initialAgentCount: InitialAgentCount) extends A
                                clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult]): Unit = {
     clientGenerator ! ClientGenerator.GenerateStandardClients(
       config.clientsCount, brokersIds, config.minBrokersInClientCount, config.maxBrokersInClientCount, clientGeneratorResponseWrapper)
+  }
+
+  override def initializeClientRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit = {
+    clientManager ! ClientManager.InitClientsReservationScheduler(
+      Configuration.Simulation.Standard.clientTicketReservationSchedulerMinDelay,
+      Configuration.Simulation.Standard.clientTicketReservationSchedulerMaxDelay)
   }
 }

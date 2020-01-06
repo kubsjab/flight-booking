@@ -57,7 +57,7 @@ abstract class AbstractSimulationGuardian(val initialAgentCount: InitialAgentCou
       case BrokersGenerated(response: BrokerGenerator.OperationResult) =>
         brokersGenerated(context, clientGenerator, response, clientGeneratorResponseWrapper)
       case ClientsGenerated(response: ClientGenerator.OperationResult) =>
-        clientsGenerated(context, response)
+        clientsGenerated(context, clientManager, response)
       case _ => Behaviors.same
     }
 
@@ -107,10 +107,12 @@ abstract class AbstractSimulationGuardian(val initialAgentCount: InitialAgentCou
   }
 
   private def clientsGenerated(context: ActorContext[Simulation.Message],
+                               clientManager: ActorRef[ClientManager.Command],
                                response: ClientGenerator.OperationResult): Behavior[Simulation.Message] = {
     response match {
       case ClientGenerator.ClientGenerationCompleted(clientIds) if clientIds.size == initialAgentCount.client =>
-        // TODO Probably when brokers and clients (mainly clients) are created, we should create some initial booking requests (similarly to airlines and flights)
+        context.log.info("Initiating client schedulers for ticket reservation")
+        initializeClientRequestScheduler(clientManager)
         Behaviors.same
       case ClientGenerator.ClientGenerationCompleted(_) =>
         context.log.error("Clients count does not match expected clients count")
@@ -138,5 +140,7 @@ abstract class AbstractSimulationGuardian(val initialAgentCount: InitialAgentCou
                                 clientGenerator: ActorRef[ClientGenerator.Command],
                                 brokersIds: Set[String],
                                 clientGeneratorResponseWrapper: ActorRef[ClientGenerator.OperationResult]): Unit
+
+  protected def initializeClientRequestScheduler(clientManager: ActorRef[ClientManager.Command]): Unit
 
 }

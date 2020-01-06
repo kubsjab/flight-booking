@@ -7,7 +7,9 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
-
+import scala.concurrent.duration
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Random
 
 object ClientManager {
 
@@ -18,6 +20,7 @@ object ClientManager {
   final case class CreateClient(clientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]], replyTo: ActorRef[OperationResult]) extends Command
   final case class GetClient(clientId: String, replyTo: ActorRef[ClientCollection]) extends Command
   final case class GetClients(replyTo: ActorRef[ClientCollection]) extends Command
+  final case class InitClientsReservationScheduler(delayMin: Int, delayMax: Int) extends Command
   private final case class TerminateClient(clientId: String, client: ActorRef[Client.Command]) extends Command
 
   // event
@@ -55,6 +58,7 @@ object ClientManager {
         case c: TerminateClient => terminateClient(context, state, c)
         case c: GetClient => getClient(state, c)
         case c: GetClients => getClients(state, c)
+        case c: InitClientsReservationScheduler => initClientsReservationScheduler(state, c)
       }
   }
 
@@ -93,5 +97,11 @@ object ClientManager {
 
   private def getClients(state: State, cmd: GetClients): ReplyEffect[Event, State] = {
     Effect.reply(cmd.replyTo)(ClientCollection(state.clientActors))
+  }
+
+  private def initClientsReservationScheduler(state: State, cmd: InitClientsReservationScheduler): Effect[Event, State] = {
+    state.clientActors.foreach(
+      clientInfo => clientInfo._2 ! Client.InitScheduledTicketReservation(Client.StartTicketReservation(), FiniteDuration(Random.between(cmd.delayMin, cmd.delayMax), duration.SECONDS)))
+    Effect.none
   }
 }

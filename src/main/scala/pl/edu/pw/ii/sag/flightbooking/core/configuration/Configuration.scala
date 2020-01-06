@@ -38,6 +38,9 @@ object Configuration {
       val brokersCount: Int = configuration.getInt("configuration.simulation.standard.broker.count")
       val clientsCount: Int = configuration.getInt("configuration.simulation.standard.client.count")
 
+      val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.ticket-reservation.minDelay")
+      val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.standard.client.scheduler.ticket-reservation.maxDelay")
+
       val flight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.standard.flight.initial.minCount"),
         initialMaxCount = configuration.getInt("configuration.simulation.standard.flight.initial.maxCount"),
@@ -59,6 +62,9 @@ object Configuration {
       val airlinesCount: Int = configuration.getInt("configuration.simulation.delayed.airline.count")
       val brokersCount: Int = configuration.getInt("configuration.simulation.delayed.broker.count")
       val clientsCount: Int = configuration.getInt("configuration.simulation.delayed.client.count")
+
+      val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.ticket-reservation.minDelay")
+      val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.delayed.client.scheduler.ticket-reservation.maxDelay")
 
       val standardFlight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.delayed.flight.standard.initial.minCount"),
@@ -91,6 +97,9 @@ object Configuration {
       val airlinesCount: Int = configuration.getInt("configuration.simulation.overbooking.airline.count")
       val brokersCount: Int = configuration.getInt("configuration.simulation.overbooking.broker.count")
       val clientsCount: Int = configuration.getInt("configuration.simulation.overbooking.client.count")
+
+      val clientTicketReservationSchedulerMinDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.ticket-reservation.minDelay")
+      val clientTicketReservationSchedulerMaxDelay: Int = configuration.getInt("configuration.simulation.overbooking.client.scheduler.ticket-reservation.maxDelay")
 
       val standardFlight: Flight = Flight(
         initialMinCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.initial.minCount"),
