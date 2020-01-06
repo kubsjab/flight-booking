@@ -88,9 +88,34 @@ object Configuration {
     }
 
     object Overbooking {
+      val airlinesCount: Int = configuration.getInt("configuration.simulation.overbooking.airline.count")
+      val brokersCount: Int = configuration.getInt("configuration.simulation.overbooking.broker.count")
+      val clientsCount: Int = configuration.getInt("configuration.simulation.overbooking.client.count")
+
+      val standardFlight: Flight = Flight(
+        initialMinCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.initial.minCount"),
+        initialMaxCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.initial.maxCount"),
+        schedulerEnabled = configuration.getBoolean("configuration.simulation.overbooking.flight.standard.scheduler.enabled"),
+        schedulerDelay = configuration.getInt("configuration.simulation.overbooking.flight.standard.scheduler.delay"),
+        schedulerMinCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.scheduler.minCount"),
+        schedulerMaxCount = configuration.getInt("configuration.simulation.overbooking.flight.standard.scheduler.maxCount")
+      )
+
+      val overbookingFlight: Flight = Flight(
+        initialMinCount = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.initial.minCount"),
+        initialMaxCount = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.initial.maxCount"),
+        schedulerEnabled = configuration.getBoolean("configuration.simulation.overbooking.flight.overbooking.scheduler.enabled"),
+        schedulerDelay = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.scheduler.delay"),
+        schedulerMinCount = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.scheduler.minCount"),
+        schedulerMaxCount = configuration.getInt("configuration.simulation.overbooking.flight.overbooking.scheduler.maxCount")
+      )
+
+      val minAirlinesInBrokerCount: Int = Math.max(airlinesCount - 2, 1)
+      val maxAirlinesInBrokerCount: Int = airlinesCount
+      val minBrokersInClientCount: Int = Math.max(brokersCount - 5, 2)
+      val maxBrokersInClientCount: Int = brokersCount
 
     }
-
   }
 
 }
