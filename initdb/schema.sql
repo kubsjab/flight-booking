@@ -80,8 +80,7 @@ SELECT
     ordering,
     persistence_id,
     sequence_number,
-    tags,
-    payload
+    tags
 FROM events
 WITH DATA;
 
@@ -115,8 +114,7 @@ SELECT
     payload ->> 'seatId' AS seat,
     payload -> 'booking'->> 'bookingId' AS bookingId,
     CONCAT (payload -> 'booking' -> 'customer'->> 'firstName', ' ', payload -> 'booking' -> 'customer'->> 'lastName') AS customer,
-    payload -> 'booking'->> 'createdDate' AS datetime,
-    payload
+    payload -> 'booking'->> 'createdDate' AS datetime
 FROM events
 WITH DATA;
 
@@ -145,8 +143,7 @@ SELECT
     ordering,
     persistence_id,
     sequence_number,
-    tags,
-    payload
+    tags
 FROM events
 WITH DATA;
 
