@@ -1,7 +1,7 @@
 package pl.edu.pw.ii.sag.flightbooking.core.broker
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
@@ -18,12 +18,10 @@ object BrokerManager {
   final case class CreateBroker(brokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]], replyTo: ActorRef[OperationResult]) extends Command
   final case class GetBroker(brokerId: String, replyTo: ActorRef[BrokerCollection]) extends Command
   final case class GetBrokers(replyTo: ActorRef[BrokerCollection]) extends Command
-  private final case class TerminateBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-  final case class BrokerCreated(BrokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]]) extends Event
-  final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
+  final case class BrokerCreated(brokerData: BrokerData, brokerActor: ActorRef[Broker.Command]) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -37,12 +35,14 @@ object BrokerManager {
 
   def apply(): Behavior[Command] =
     Behaviors.setup { context =>
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(TAG),
-        emptyState = State(Map.empty),
-        commandHandler = commandHandler(context),
-        eventHandler = eventHandler(context))
-        .withTagger(taggingAdapter)
+      Behaviors.supervise(
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(TAG),
+          emptyState = State(Map.empty),
+          commandHandler = commandHandler(context),
+          eventHandler = eventHandler(context))
+          .withTagger(taggingAdapter)
+      ).onFailure[Exception](SupervisorStrategy.restart)
 
     }
 
@@ -53,7 +53,6 @@ object BrokerManager {
     (state, cmd) =>
       cmd match {
         case c: CreateBroker => createBroker(context, state, c)
-        case c: TerminateBroker => terminateBroker(context, state, c)
         case c: GetBroker => getBroker(state, c)
         case c: GetBrokers => getBrokers(state, c)
       }
@@ -61,15 +60,9 @@ object BrokerManager {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case BrokerCreated(brokerData, airlines) =>
-        val broker = context.spawn(Broker(brokerData, airlines), brokerData.brokerId)
-        context.watchWith(broker, TerminateBroker(brokerData.brokerId, broker))
+      case BrokerCreated(brokerData, broker) =>
         context.log.info(s"Broker: [${brokerData.brokerId}] has been created")
         State(state.brokerActors.updated(brokerData.brokerId, broker))
-      case BrokerTerminated(brokerId, broker) =>
-        context.log.info(s"Broker: [${brokerId}] has been terminated")
-        context.unwatch(broker)
-        State(state.brokerActors - brokerId)
     }
   }
 
@@ -77,14 +70,11 @@ object BrokerManager {
     state.brokerActors.get(cmd.brokerData.brokerId) match {
       case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Broker - [${cmd.brokerData.brokerId}] already exists"))
       case None =>
+        val broker = context.spawn(Broker(cmd.brokerData, cmd.airlines), cmd.brokerData.brokerId)
         Effect
-          .persist(BrokerCreated(cmd.brokerData, cmd.airlines))
+          .persist(BrokerCreated(cmd.brokerData, broker))
           .thenReply(cmd.replyTo)(_ => BrokerCreationConfirmed(cmd.brokerData.brokerId))
     }
-  }
-
-  private def terminateBroker(context: ActorContext[Command], state: State, cmd: TerminateBroker): Effect[Event, State] = {
-    Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
   }
 
   private def getBroker(state: State, cmd: GetBroker): ReplyEffect[Event, State] = {

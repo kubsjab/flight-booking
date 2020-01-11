@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 import java.util.concurrent.TimeoutException
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightDetails
@@ -27,8 +27,6 @@ object Client {
   // command
   sealed trait Command extends CborSerializable
 
-  private final case class RemoveBroker(brokerId: String, broker: ActorRef[Broker.Command]) extends Command
-
   final case class StartTicketReservation() extends Command
   final case class StartTicketCancelling() extends Command
   final case class InitScheduledTicketReservation(scheduledCmd: StartTicketReservation, delay: FiniteDuration) extends Command
@@ -42,7 +40,6 @@ object Client {
 
   // event
   sealed trait Event extends CborSerializable
-  final case class BrokerTerminated(brokerId: String, broker: ActorRef[Broker.Command]) extends Event
   private final case class TicketReservationStarted(bookingData: BookingData) extends Event
   private final case class BookingAccepted(requestId: Int, bookingId: String) extends Event
   private final case class BookingRejected(requestId: Int, reason: String) extends Event
@@ -70,13 +67,16 @@ object Client {
   def apply(clientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]]): Behavior[Command] = {
     Behaviors.withTimers(timers =>
       Behaviors.setup { context =>
-        EventSourcedBehavior[Command, Event, State](
-          persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
-          emptyState = getInitialState(brokers, clientData),
-          commandHandler = commandHandler(context, timers),
-          eventHandler = eventHandler(context))
-          .withTagger(taggingAdapter)
-      })
+        Behaviors.supervise(
+          EventSourcedBehavior[Command, Event, State](
+            persistenceId = PersistenceId.ofUniqueId(clientData.clientId),
+            emptyState = getInitialState(brokers, clientData),
+            commandHandler = commandHandler(context, timers),
+            eventHandler = eventHandler(context))
+            .withTagger(taggingAdapter)
+        ).onFailure[Exception](SupervisorStrategy.restart)
+      }
+    )
   }
 
   private def getInitialState(brokerActors: Map[String, ActorRef[Broker.Command]], clientData: ClientData): State = {
@@ -95,7 +95,6 @@ object Client {
         case WrappedCancelingOperationResult(response) => handleCancellingResponse(context, response): Effect[Event, State]
         case CancellingFailedResult(exception, requestId) => handleCancellingFailedResult(context, exception, requestId): Effect[Event, State]
         case WrappedAggregatedBrokerFlights(response) => handleGetFlightsQueryResponse(context, state, response): Effect[Event, State]
-        case c: RemoveBroker => brokerTerminated(c)
         case InitScheduledTicketReservation(scheduledCmd, delay) => initScheduledReservationCommand(context, timers, scheduledCmd, delay)
         case InitScheduledReservationCancelling(scheduledCmd, delay) => initScheduledReservationCancellingCommand(context, timers, scheduledCmd, delay)
         case _ => Effect.none
@@ -104,11 +103,6 @@ object Client {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case BrokerTerminated(brokerId, broker) =>
-        context.log.info(s"Broker: [${brokerId}] has been terminated. Removing from Client.")
-        context.unwatch(broker)
-        state.copy(brokerActors = state.brokerActors - brokerId)
-
       case TicketReservationStarted(bookingData) =>
         state.copy(bookingRequests = state.bookingRequests.updated(bookingData.id, bookingData), nextRequestId = state.nextRequestId + 1)
       case BookingAccepted(requestId, bookingId) =>
@@ -186,7 +180,7 @@ object Client {
         context.log.info(s"Cancelling failed, broker returned internal timeout")
         Effect.persist(CancelBookingFailed(requestId, "Broker returned internal timeout"))
       case Broker.CancelBookingAccepted(requestId) =>
-        context.log.info(s"Cancelling completed succesfully")
+        context.log.info(s"Cancelling completed successfully")
         Effect.persist(CancelBookingAccepted(requestId))
       case Broker.CancelBookingRejected(reason, requestId) =>
         context.log.info(s"Cancelling rejected, reason: $reason")
@@ -201,7 +195,7 @@ object Client {
         context.log.info(s"Reservation failed, broker timed out")
         Effect.persist(BookingFailed(requestId, "Broker timeout"))
       case _ =>
-        context.log.info(s"Reservation failed, exception occured")
+        context.log.info(s"Reservation failed, exception occurred")
         Effect.persist(BookingFailed(requestId, exception.getMessage))
     }
   }
@@ -212,7 +206,7 @@ object Client {
         context.log.info(s"Cancelling failed, broker timed out")
         Effect.persist(CancelBookingFailed(requestId, "Broker timeout"))
       case _ =>
-        context.log.info(s"Cancelling failed, exception occured")
+        context.log.info(s"Cancelling failed, exception occurred")
         Effect.persist(CancelBookingFailed(requestId, exception.getMessage))
     }
   }
@@ -290,14 +284,10 @@ object Client {
       .filter(_.bookingStatus == BookingStatus.CONFIRMED)
 
     if (confirmedReservations.isEmpty) {
-      context.log.info("No confirmed reservations. Cancel request ignored")
       return None
     }
-    Some(confirmedReservations.toList.apply(Random.nextInt(confirmedReservations.toList.length)))
-  }
 
-  private def brokerTerminated(cmd: RemoveBroker): Effect[Event, State] = {
-    Effect.persist(BrokerTerminated(cmd.brokerId, cmd.broker))
+    Some(confirmedReservations.toList.apply(Random.nextInt(confirmedReservations.toList.length)))
   }
 
   private def initScheduledReservationCommand(context: ActorContext[Command],

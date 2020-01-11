@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.core.airline
 import java.time.ZonedDateTime
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
@@ -33,14 +33,10 @@ object Airline {
   final case class GetFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[FlightDetailsCollection]) extends Command
   final case class BookFlight(flightId: String, seatId: String, customer: Customer, requestedDate: ZonedDateTime, replyTo: ActorRef[Flight.BookingOperationResult], requestId: Int) extends Command
   final case class CancelFlightBooking(flightId: String, bookingId: String, replyTo: ActorRef[Flight.CancelBookingOperationResult], requestId: Int) extends Command
-  private final case class TerminateFlight(flightId: String, flight: ActorRef[Flight.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-
-  final case class FlightCreated(flightInfo: FlightInfo, flightBookingStrategy: FlightBookingStrategyType, replyStrategy: ReplyStrategyType) extends Event
-
-  final case class FlightTerminated(flightId: String, flight: ActorRef[Flight.Command]) extends Event
+  final case class FlightCreated(flightInfo: FlightInfo, flightActor: ActorRef[Flight.Command]) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -56,12 +52,14 @@ object Airline {
 
   def apply(airlineData: AirlineData): Behavior[Command] = {
     Behaviors.setup { context =>
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(airlineData.airlineId),
-        emptyState = State(airlineData.airlineId, Map.empty),
-        commandHandler = commandHandler(context),
-        eventHandler = eventHandler(context))
-        .withTagger(taggingAdapter)
+      Behaviors.supervise(
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(airlineData.airlineId),
+          emptyState = State(airlineData.airlineId, Map.empty),
+          commandHandler = commandHandler(context),
+          eventHandler = eventHandler(context))
+          .withTagger(taggingAdapter)
+      ).onFailure[Exception](SupervisorStrategy.restart)
     }
   }
 
@@ -71,7 +69,6 @@ object Airline {
     (state, cmd) =>
       cmd match {
         case c: CreateFlight => createFlight(context, state, c)
-        case c: TerminateFlight => terminateFlight(context, state, c)
         case c: GetFlights => getFlights(context, state, c)
         case c: GetFlightsBySource =>  getFlightsBySource(context, state, c)
         case c: GetFlightsBySourceAndDestination =>  getFlightsBySourceAndDestination(context, state, c)
@@ -82,15 +79,9 @@ object Airline {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case FlightCreated(flightInfo, flightBookingStrategy, replyStrategy) =>
-        val flight = context.spawn(Flight(flightInfo, flightBookingStrategy, replyStrategy), flightInfo.flightId)
-        context.watchWith(flight, TerminateFlight(flightInfo.flightId, flight))
+      case FlightCreated(flightInfo, flight) =>
         context.log.info(s"Flight: [${flightInfo.flightId}] has been created")
         State(state.airlineId, state.flightActors.updated(flightInfo.flightId, FlightActorWrapper(flightInfo, flight)))
-      case FlightTerminated(flightId, flight) =>
-        context.log.info(s"Flight: [${flightId}] has been terminated")
-        context.unwatch(flight)
-        State(state.airlineId, state.flightActors - flightId)
     }
   }
 
@@ -108,14 +99,12 @@ object Airline {
           providedFlightInfo.source,
           providedFlightInfo.destination)
 
+        val flight = context.spawn(Flight(flightInfo, cmd.flightBookingStrategy, cmd.replyStrategy), flightInfo.flightId)
+
         Effect
-          .persist(FlightCreated(flightInfo, cmd.flightBookingStrategy, cmd.replyStrategy))
+          .persist(FlightCreated(flightInfo, flight))
           .thenReply(cmd.replyTo)(_ => FlightCreationConfirmed(flightInfo.flightId))
     }
-  }
-
-  private def terminateFlight(context: ActorContext[Command], state: State, cmd: TerminateFlight): Effect[Event, State] = {
-    Effect.persist(FlightTerminated(cmd.flightId, cmd.flight))
   }
 
   private def getFlights(context: ActorContext[Command], state: State, cmd: GetFlights): Effect[Event, State] = {

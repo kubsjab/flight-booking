@@ -1,12 +1,13 @@
 package pl.edu.pw.ii.sag.flightbooking.core.client
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import pl.edu.pw.ii.sag.flightbooking.core.broker.Broker
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
+
 import scala.concurrent.duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
@@ -22,12 +23,10 @@ object ClientManager {
   final case class GetClients(replyTo: ActorRef[ClientCollection]) extends Command
   final case class InitClientsReservationScheduler(delayMin: Int, delayMax: Int) extends Command
   final case class InitClientsReservationCancellingScheduler(delayMin: Int, delayMax: Int) extends Command
-  private final case class TerminateClient(clientId: String, client: ActorRef[Client.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-  final case class ClientCreated(ClientData: ClientData, brokers: Map[String, ActorRef[Broker.Command]]) extends Event
-  final case class ClientTerminated(clientId: String, client: ActorRef[Client.Command]) extends Event
+  final case class ClientCreated(clientData: ClientData, clientActor: ActorRef[Client.Command]) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -41,13 +40,14 @@ object ClientManager {
 
   def apply(): Behavior[Command] =
     Behaviors.setup { context =>
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(TAG),
-        emptyState = State(Map.empty),
-        commandHandler = commandHandler(context),
-        eventHandler = eventHandler(context))
-        .withTagger(taggingAdapter)
-
+      Behaviors.supervise(
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(TAG),
+          emptyState = State(Map.empty),
+          commandHandler = commandHandler(context),
+          eventHandler = eventHandler(context))
+          .withTagger(taggingAdapter)
+      ).onFailure[Exception](SupervisorStrategy.restart)
     }
 
   private val taggingAdapter: Event => Set[String] = event => new TaggingAdapter[Event]().tag(event)
@@ -56,7 +56,6 @@ object ClientManager {
     (state, cmd) =>
       cmd match {
         case c: CreateClient => createClient(context, state, c)
-        case c: TerminateClient => terminateClient(context, state, c)
         case c: GetClient => getClient(state, c)
         case c: GetClients => getClients(state, c)
         case c: InitClientsReservationScheduler => initClientsReservationScheduler(state, c)
@@ -66,16 +65,9 @@ object ClientManager {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case ClientCreated(clientData, brokers) =>
-        val client = context.spawn(Client(clientData, brokers), clientData.clientId)
-        context.watchWith(client, TerminateClient(clientData.clientId, client))
+      case ClientCreated(clientData, client) =>
         context.log.info(s"Client: [${clientData.clientId}] has been created")
-        client ! Client.StartTicketReservation()
         State(state.clientActors.updated(clientData.clientId, client))
-      case ClientTerminated(clientId, client) =>
-        context.log.info(s"Client: [${clientId}] has been terminated")
-        context.unwatch(client)
-        State(state.clientActors - clientId)
     }
   }
 
@@ -83,14 +75,12 @@ object ClientManager {
     state.clientActors.get(cmd.clientData.clientId) match {
       case Some(_) => Effect.reply(cmd.replyTo)(Rejected(s"Client - [${cmd.clientData.clientId}] already exists"))
       case None =>
+        val client = context.spawn(Client(cmd.clientData, cmd.brokers), cmd.clientData.clientId)
+        client ! Client.StartTicketReservation()
         Effect
-          .persist(ClientCreated(cmd.clientData, cmd.brokers))
+          .persist(ClientCreated(cmd.clientData, client))
           .thenReply(cmd.replyTo)(_ => ClientCreationConfirmed(cmd.clientData.clientId))
     }
-  }
-
-  private def terminateClient(context: ActorContext[Command], state: State, cmd: TerminateClient): Effect[Event, State] = {
-    Effect.persist(ClientTerminated(cmd.clientId, cmd.client))
   }
 
   private def getClient(state: State, cmd: GetClient): ReplyEffect[Event, State] = {

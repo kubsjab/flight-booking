@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.core.airline.flight
 import java.time.ZonedDateTime
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.flight.FlightBookingStrategyType.FlightBookingStrategyType
@@ -108,13 +108,14 @@ object Flight {
 
   def apply(flightInfo: FlightInfo, flightBookingStrategyType: FlightBookingStrategyType, replyStrategyType: ReplyStrategyType): Behavior[Command] =
     Behaviors.setup { context =>
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(flightInfo.flightId),
-        emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
-        commandHandler = commandHandler(context, flightBookingStrategyType, replyStrategyType),
-        eventHandler = eventHandler)
-        .withTagger(taggingAdapter)
-
+      Behaviors.supervise(
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(flightInfo.flightId),
+          emptyState = OpenedFlight(flightInfo, flightInfo.plane.seats.map(seat => seat.id -> None).toMap),
+          commandHandler = commandHandler(context, flightBookingStrategyType, replyStrategyType),
+          eventHandler = eventHandler)
+          .withTagger(taggingAdapter)
+      ).onFailure[Exception](SupervisorStrategy.restart)
     }
 
   private val eventHandler: (State, Event) => State = { (state, event) =>

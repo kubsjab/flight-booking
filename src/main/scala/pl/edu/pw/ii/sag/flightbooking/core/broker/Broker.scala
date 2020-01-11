@@ -3,7 +3,7 @@ package pl.edu.pw.ii.sag.flightbooking.core.broker
 import java.time.ZonedDateTime
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
@@ -25,11 +25,9 @@ object Broker {
   final case class GetAirlineFlights(replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySource(source: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
   final case class GetAirlineFlightsBySourceAndDestination(source: String, destination: String, replyTo: ActorRef[AirlineFlightDetailsCollection]) extends Command
-  private final case class RemoveAirline(airlineId: String, airline: ActorRef[Airline.Command]) extends Command
 
   // event
   sealed trait Event extends CborSerializable
-  final case class AirlineTerminated(airlineId: String, airline: ActorRef[Airline.Command]) extends Event
 
   //state
   final case class State(brokerId: String, airlineActors: Map[String, ActorRef[Airline.Command]]) extends CborSerializable
@@ -38,10 +36,8 @@ object Broker {
   sealed trait CommandReply extends CborSerializable
 
   sealed trait BookingOperationResult extends CommandReply
-
   final case class BookingAccepted(bookingId: String, requestId: Int) extends BookingOperationResult
   sealed trait BookingFailed extends BookingOperationResult
-
   final case class BookingRejected(reason: String, requestId: Int) extends BookingFailed
 
   sealed trait CancelBookingOperationResult extends CommandReply
@@ -61,14 +57,14 @@ object Broker {
 
   def apply(brokerData: BrokerData, airlines: Map[String, ActorRef[Airline.Command]]): Behavior[Command] = {
     Behaviors.setup { context =>
-      airlines.foreach(airlineInfo => context.watchWith(airlineInfo._2, RemoveAirline(airlineInfo._1, airlineInfo._2)))
-      EventSourcedBehavior[Command, Event, State](
-        persistenceId = PersistenceId.ofUniqueId(brokerData.brokerId),
-        emptyState = State(brokerData.brokerId, airlines),
-        commandHandler = commandHandler(context),
-        eventHandler = eventHandler(context))
-        .withTagger(taggingAdapter)
-
+      Behaviors.supervise(
+        EventSourcedBehavior[Command, Event, State](
+          persistenceId = PersistenceId.ofUniqueId(brokerData.brokerId),
+          emptyState = State(brokerData.brokerId, airlines),
+          commandHandler = commandHandler(context),
+          eventHandler = eventHandler(context))
+          .withTagger(taggingAdapter)
+      ).onFailure[Exception](SupervisorStrategy.restart)
     }
   }
 
@@ -83,23 +79,14 @@ object Broker {
         case c: GetAirlineFlights => getAirlineFlights(context, state, c)
         case c: GetAirlineFlightsBySource => getAirlineFlightsBySource(context, state, c)
         case c: GetAirlineFlightsBySourceAndDestination => getAirlineFlightsBySourceAndDestination(context, state, c)
-        case c: RemoveAirline => airlineTerminated(c)
         case _ => Effect.none
       }
   }
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case AirlineTerminated(airlineId, airline) =>
-        context.log.info(s"Airline: [${airlineId}] has been terminated. Removing from Broker.")
-        context.unwatch(airline)
-        state.copy(airlineActors = state.airlineActors - airlineId)
       case _ => state
     }
-  }
-
-  private def airlineTerminated(cmd: RemoveAirline): Effect[Event, State] ={
-    Effect.persist(AirlineTerminated(cmd.airlineId, cmd.airline))
   }
 
   private def bookFlight(context: ActorContext[Command], state: State, cmd: BookFlight): Effect[Event, State] = {
