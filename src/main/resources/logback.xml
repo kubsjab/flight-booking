@@ -7,10 +7,17 @@
         </encoder>
     </appender>
 
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <encoder>
+            <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] [%X{akkaSource}] - %msg%n</pattern>
+        </encoder>
+        <file>./log.txt</file>
+    </appender>
+
     <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
-        <queueSize>1024</queueSize>
+        <queueSize>10240</queueSize>
         <neverBlock>true</neverBlock>
-        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
     </appender>
 
     <logger name="pl.edu.pw.ii.sag.flightbooking" level="INFO"/>
