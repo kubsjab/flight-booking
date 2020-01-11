@@ -14,6 +14,8 @@ import pl.edu.pw.ii.sag.flightbooking.core.domain.customer.Customer
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
+import scala.concurrent.duration._
+
 case class AirlineData(airlineId: String, name: String)
 
 case class FlightActorWrapper(flightInfo: FlightInfo, flightActor: ActorRef[Flight.Command])
@@ -59,6 +61,7 @@ object Airline {
           commandHandler = commandHandler(context),
           eventHandler = eventHandler(context))
           .withTagger(taggingAdapter)
+          .onPersistFailure(SupervisorStrategy.restartWithBackoff(minBackoff = 2.seconds, maxBackoff = 30.seconds, randomFactor = 0.1))
       ).onFailure[Exception](SupervisorStrategy.restart)
     }
   }

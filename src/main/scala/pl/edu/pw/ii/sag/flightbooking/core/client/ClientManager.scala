@@ -9,7 +9,7 @@ import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
 import scala.concurrent.duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.Random
 
 object ClientManager {
@@ -47,6 +47,7 @@ object ClientManager {
           commandHandler = commandHandler(context),
           eventHandler = eventHandler(context))
           .withTagger(taggingAdapter)
+          .onPersistFailure(SupervisorStrategy.restartWithBackoff(minBackoff = 2.seconds, maxBackoff = 30.seconds, randomFactor = 0.1))
       ).onFailure[Exception](SupervisorStrategy.restart)
     }
 

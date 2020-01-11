@@ -8,6 +8,8 @@ import pl.edu.pw.ii.sag.flightbooking.core.airline.Airline
 import pl.edu.pw.ii.sag.flightbooking.eventsourcing.TaggingAdapter
 import pl.edu.pw.ii.sag.flightbooking.serialization.CborSerializable
 
+import scala.concurrent.duration._
+
 
 object BrokerManager {
 
@@ -42,6 +44,7 @@ object BrokerManager {
           commandHandler = commandHandler(context),
           eventHandler = eventHandler(context))
           .withTagger(taggingAdapter)
+          .onPersistFailure(SupervisorStrategy.restartWithBackoff(minBackoff = 2.seconds, maxBackoff = 30.seconds, randomFactor = 0.1))
       ).onFailure[Exception](SupervisorStrategy.restart)
 
     }
