@@ -40,12 +40,12 @@ object Client {
 
   // event
   sealed trait Event extends CborSerializable
-  private final case class TicketReservationStarted(bookingData: BookingData) extends Event
+  private final case class BookingStarted(bookingData: BookingData) extends Event
   private final case class BookingAccepted(requestId: Int, bookingId: String) extends Event
   private final case class BookingRejected(requestId: Int, reason: String) extends Event
   private final case class BookingFailed(requestId: Int, reason: String) extends Event
 
-  private final case class TicketCancellingStarted(bookingData: BookingData) extends Event
+  private final case class CancelBookingStarted(bookingData: BookingData) extends Event
   private final case class CancelBookingAccepted(requestId: Int) extends Event
   private final case class CancelBookingRejected(requestId: Int, reason: String) extends Event
   private final case class CancelBookingFailed(requestId: Int, reason: String) extends Event
@@ -103,7 +103,7 @@ object Client {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case TicketReservationStarted(bookingData) =>
+      case BookingStarted(bookingData) =>
         state.copy(bookingRequests = state.bookingRequests.updated(bookingData.id, bookingData), nextRequestId = state.nextRequestId + 1)
       case BookingAccepted(requestId, bookingId) =>
         val updatedBookingRequests = state.bookingRequests.get(requestId) match {
@@ -223,7 +223,7 @@ object Client {
     implicit val timeout: akka.util.Timeout = FiniteDuration(Configuration.Core.Client.bookingTimeout, SECONDS)
     context.log.debug(s"Starting booking reservation from $brokerId for $data")
 
-    Effect.persist(TicketReservationStarted(data))
+    Effect.persist(BookingStarted(data))
       .thenRun(state =>
         context.ask(broker, (ref: ActorRef[Broker.BookingOperationResult]) =>
           Broker.BookFlight(data.flightInfo.airlineId,
@@ -261,7 +261,7 @@ object Client {
   private def cancelTicket(context: ActorContext[Command], state: State, bookingData: BookingData): Effect[Event, State] = {
     val broker = state.brokerActors(bookingData.brokerId)
     implicit val timeout: akka.util.Timeout = FiniteDuration(Configuration.Core.Client.cancelBookingTimeout, SECONDS)
-    Effect.persist(TicketCancellingStarted(bookingData))
+    Effect.persist(CancelBookingStarted(bookingData))
       .thenRun(_ =>
         context.ask(broker, (ref: ActorRef[Broker.CancelBookingOperationResult]) =>
           Broker.CancelFlightBooking(

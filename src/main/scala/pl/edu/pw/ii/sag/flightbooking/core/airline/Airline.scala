@@ -36,7 +36,7 @@ object Airline {
 
   // event
   sealed trait Event extends CborSerializable
-  final case class FlightCreated(flightInfo: FlightInfo, flightActor: ActorRef[Flight.Command]) extends Event
+  final case class FlightCreated(flightInfo: FlightInfo, flightActor: ActorRef[Flight.Command], createdDate: ZonedDateTime) extends Event
 
   // reply
   sealed trait CommandReply extends CborSerializable
@@ -79,7 +79,7 @@ object Airline {
 
   private def eventHandler(context: ActorContext[Command]): (State, Event) => State = { (state, event) =>
     event match {
-      case FlightCreated(flightInfo, flight) =>
+      case FlightCreated(flightInfo, flight, _) =>
         context.log.info(s"Flight: [${flightInfo.flightId}] has been created")
         State(state.airlineId, state.flightActors.updated(flightInfo.flightId, FlightActorWrapper(flightInfo, flight)))
     }
@@ -102,7 +102,7 @@ object Airline {
         val flight = context.spawn(Flight(flightInfo, cmd.flightBookingStrategy, cmd.replyStrategy), flightInfo.flightId)
 
         Effect
-          .persist(FlightCreated(flightInfo, flight))
+          .persist(FlightCreated(flightInfo, flight, ZonedDateTime.now()))
           .thenReply(cmd.replyTo)(_ => FlightCreationConfirmed(flightInfo.flightId))
     }
   }
