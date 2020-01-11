@@ -85,6 +85,36 @@ FROM events
 WITH DATA;
 
 
+-- flights_view
+
+-- Contains information about creating clients, airlines and brokers.
+-- To refresh run:
+--     REFRESH MATERIALIZED VIEW flights_view;
+
+DROP MATERIALIZED VIEW IF EXISTS flights_view;
+
+CREATE MATERIALIZED VIEW flights_view
+AS
+    WITH events AS (
+        SELECT ordering,
+               persistence_id,
+               sequence_number,
+               deleted,
+               tags,
+               bytea_to_jsonb(journal.message) as payload
+        FROM journal
+        WHERE persistence_id LIKE 'airline-%'
+          AND tags = 'flight-created'
+    )
+    SELECT
+        ordering,
+        persistence_id,
+        sequence_number,
+        tags,
+        payload -> 'booking'->> 'createdDate' AS datetime
+    FROM events
+    WITH DATA;
+
 -- bookings_view
 
 -- Contains information about bookings. It contains data for all flights and all flight-booking events like
