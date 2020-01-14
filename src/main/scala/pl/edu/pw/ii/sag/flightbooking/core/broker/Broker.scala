@@ -108,7 +108,7 @@ object Broker {
       case Some(airline) =>
         context.spawnAnonymous(FlightBooking.cancelFlightBooking(airline, cmd.flightId, cmd.bookingId, cmd.replyTo, cmd.requestId))
       case None =>
-        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]", 0) //TODO add requestId
+        cmd.replyTo ! GeneralSystemFailure(s"Unable to find airline with id: [${cmd.airlineId}]", 0)
     }
     Effect.none
   }
